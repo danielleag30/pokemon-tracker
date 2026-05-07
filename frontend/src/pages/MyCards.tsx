@@ -162,7 +162,7 @@ export function MyCards() {
         return bDate.localeCompare(aDate);
       });
     } else if (groupBy === 'region') {
-      const regionOrder = REGIONS.map((r) => r.id);
+      const regionOrder: string[] = REGIONS.map((r) => r.id);
       result.sort((a, b) => {
         const ai = regionOrder.indexOf(a.key);
         const bi = regionOrder.indexOf(b.key);
@@ -175,7 +175,7 @@ export function MyCards() {
         return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
       });
     } else if (groupBy === 'starter') {
-      const regionOrder = REGIONS.map((r) => r.id);
+      const regionOrder: string[] = REGIONS.map((r) => r.id);
       result.sort((a, b) => {
         if (a.key === 'other') return 1;
         if (b.key === 'other') return -1;
