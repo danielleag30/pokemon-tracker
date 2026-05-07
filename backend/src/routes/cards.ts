@@ -17,9 +17,10 @@ function setsListValid(cachedAt: string): boolean {
   return Date.now() - new Date(cachedAt).getTime() < SETS_TTL_MS;
 }
 
-// Individual cards and set contents never change — cache forever
+// Card content never changes, but prices do — refresh weekly
+const CARD_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 function cardCacheValid(cachedAt: string): boolean {
-  return !!cachedAt; // always valid once cached
+  return Date.now() - new Date(cachedAt).getTime() < CARD_TTL_MS;
 }
 
 async function tcgFetch(url: string): Promise<any> {

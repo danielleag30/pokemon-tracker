@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Download, Upload, RefreshCw, Loader } from 'lucide-react';
-import { useCollection, useCollectionStats, useCollectionMap } from '../hooks/useCollection';
+import { useCollection, useCollectionStats, useCollectionMap, useCollectionValue } from '../hooks/useCollection';
 import { useSets } from '../hooks/useCards';
 import { useCardSearch } from '../hooks/useCards';
 import { ProgressBar } from '../components/ProgressBar';
@@ -9,6 +9,7 @@ import { CardGrid } from '../components/CardGrid';
 import { SearchBar } from '../components/SearchBar';
 import { REGIONS, SERIES_TO_REGION } from '../utils/constants';
 import { collectionApi } from '../utils/api';
+import { formatPrice } from '../utils/prices';
 
 export function Dashboard() {
   const [search, setSearch] = useState('');
@@ -18,6 +19,7 @@ export function Dashboard() {
   const { data: setsData } = useSets();
   const collectionMap = useCollectionMap();
   const { data: collection } = useCollection();
+  const { totalValue, topCards, isLoading: valueLoading } = useCollectionValue();
 
   const { data: searchResults, isFetching: searching } = useCardSearch(search, search.length >= 2);
 
@@ -62,10 +64,10 @@ export function Dashboard() {
   };
 
   const statCards = [
-    { label: 'Unique Cards', value: stats?.uniqueCards ?? 0, color: '#3B4CCA', emoji: '🃏' },
-    { label: 'Total Copies', value: stats?.totalCards ?? 0, color: '#22c55e', emoji: '📦' },
-    { label: 'Duplicates',   value: stats?.duplicates  ?? 0, color: '#f59e0b', emoji: '🔁' },
-    { label: 'Binders',      value: stats?.binders.length ?? 0, color: '#8b5cf6', emoji: '📚' },
+    { label: 'Unique Cards',   value: stats?.uniqueCards ?? 0,      color: '#3B4CCA', emoji: '🃏', format: (v: number) => v.toLocaleString() },
+    { label: 'Total Copies',   value: stats?.totalCards ?? 0,       color: '#22c55e', emoji: '📦', format: (v: number) => v.toLocaleString() },
+    { label: 'Est. Value',     value: totalValue,                    color: '#f59e0b', emoji: '💰', format: (v: number) => valueLoading ? '…' : formatPrice(v) },
+    { label: 'Binders',        value: stats?.binders.length ?? 0,   color: '#8b5cf6', emoji: '📚', format: (v: number) => v.toLocaleString() },
   ];
 
   return (
@@ -91,13 +93,13 @@ export function Dashboard() {
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {statCards.map(({ label, value, color, emoji }) => (
+        {statCards.map(({ label, value, color, emoji, format }) => (
           <div key={label} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
             <div className="text-2xl mb-1">{emoji}</div>
-            {statsLoading ? (
+            {statsLoading && label !== 'Est. Value' ? (
               <div className="h-8 bg-gray-100 rounded animate-pulse w-16 mb-1" />
             ) : (
-              <p className="text-2xl font-black" style={{ color }}>{value.toLocaleString()}</p>
+              <p className="text-2xl font-black" style={{ color }}>{format(value)}</p>
             )}
             <p className="text-xs text-gray-500 font-medium">{label}</p>
           </div>
@@ -146,6 +148,32 @@ export function Dashboard() {
           ))}
         </div>
       </div>
+
+      {/* Top valuable cards */}
+      {topCards.length > 0 && (
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-bold text-gray-700">💰 Most Valuable Cards</h2>
+            <span className="text-xs text-gray-400">TCGPlayer market price</span>
+          </div>
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+            {topCards.map(({ card, entry, price }) => (
+              <div key={card.id} className="flex flex-col items-center gap-1">
+                <div className="relative w-full">
+                  <img src={card.images.small} alt={card.name} className="w-full rounded-lg shadow-sm" />
+                  {entry.quantity > 1 && (
+                    <span className="absolute top-0.5 right-0.5 bg-pokemon-blue text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      {entry.quantity}
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs font-bold text-amber-600">{formatPrice(price)}</span>
+                <span className="text-xs text-gray-500 truncate w-full text-center">{card.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Binders */}
       {(stats?.binders.length ?? 0) > 0 && (

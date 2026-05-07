@@ -18,6 +18,14 @@ export interface TCGSet {
   images: TCGSetImages;
 }
 
+export interface TCGPriceDetail {
+  low?: number;
+  mid?: number;
+  high?: number;
+  market?: number;
+  directLow?: number;
+}
+
 export interface TCGCard {
   id: string;
   name: string;
@@ -35,6 +43,29 @@ export interface TCGCard {
   artist?: string;
   flavorText?: string;
   rules?: string[];
+  tcgplayer?: {
+    url?: string;
+    updatedAt?: string;
+    prices?: {
+      normal?: TCGPriceDetail;
+      holofoil?: TCGPriceDetail;
+      reverseHolofoil?: TCGPriceDetail;
+      '1stEditionHolofoil'?: TCGPriceDetail;
+      '1stEditionNormal'?: TCGPriceDetail;
+    };
+  };
+  cardmarket?: {
+    url?: string;
+    updatedAt?: string;
+    prices?: {
+      averageSellPrice?: number;
+      lowPrice?: number;
+      trendPrice?: number;
+      avg1?: number;
+      avg7?: number;
+      avg30?: number;
+    };
+  };
 }
 
 export interface CollectionEntry {

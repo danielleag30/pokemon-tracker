@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Map, Library, Star, Palette, GitBranch,
-  AlertCircle, Copy, Menu, X, Plus, Search
+  AlertCircle, Copy, Menu, X, Plus, Search, BookOpen
 } from 'lucide-react';
 import { BatchAddModal } from './BatchAddModal';
 import { SearchAddModal } from './SearchAddModal';
@@ -10,6 +10,7 @@ import { CollectionCode } from './CollectionCode';
 
 const links = [
   { to: '/',          label: 'Dashboard',     icon: LayoutDashboard },
+  { to: '/my-cards',  label: 'My Cards',      icon: BookOpen        },
   { to: '/sets',      label: 'By Set',        icon: Library         },
   { to: '/region',    label: 'By Region',     icon: Map             },
   { to: '/starters',  label: 'By Starter',    icon: Star            },

@@ -9,6 +9,7 @@ import { ByEvolutionStage } from './pages/ByEvolutionStage';
 import { BySet } from './pages/BySet';
 import { MissingCards } from './pages/MissingCards';
 import { Duplicates } from './pages/Duplicates';
+import { MyCards } from './pages/MyCards';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,6 +34,7 @@ export function App() {
             <Route path="type" element={<ByType />} />
             <Route path="evolution" element={<ByEvolutionStage />} />
             <Route path="sets" element={<BySet />} />
+            <Route path="my-cards" element={<MyCards />} />
             <Route path="missing" element={<MissingCards />} />
             <Route path="duplicates" element={<Duplicates />} />
           </Route>
