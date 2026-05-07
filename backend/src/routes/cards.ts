@@ -1,5 +1,4 @@
 import { Router, Request, Response } from 'express';
-import Anthropic from '@anthropic-ai/sdk';
 import { db } from '../database';
 
 export const cardsRouter = Router();
@@ -118,62 +117,6 @@ cardsRouter.get('/pokemon/:name', async (req: Request, res: Response) => {
       `${TCG_BASE}/cards?q=name:"${encodeURIComponent(name)}" supertype:Pokémon&pageSize=250&orderBy=-set.releaseDate`
     );
     res.json(data);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-cardsRouter.post('/scan', async (req: Request, res: Response) => {
-  try {
-    const { imageBase64, mimeType = 'image/jpeg' } = req.body;
-    if (!imageBase64) return res.status(400).json({ error: 'imageBase64 is required' });
-    if (!process.env.ANTHROPIC_API_KEY) {
-      return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured on server' });
-    }
-
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const message = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 300,
-      messages: [{
-        role: 'user',
-        content: [
-          {
-            type: 'image',
-            source: {
-              type: 'base64',
-              media_type: mimeType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
-              data: imageBase64,
-            },
-          },
-          {
-            type: 'text',
-            text: 'This is a Pokemon Trading Card Game card. Identify: 1) The exact card name, 2) The set name if visible, 3) The card number if visible (e.g. "025/102"). Respond ONLY with JSON: {"name": "...", "setName": "...", "cardNumber": "..."}. Use null for unknown fields.',
-          },
-        ],
-      }],
-    });
-
-    const responseText = message.content[0].type === 'text' ? message.content[0].text : '';
-    const jsonMatch = responseText.match(/\{[\s\S]*?\}/);
-    if (!jsonMatch) return res.status(422).json({ error: 'Could not parse card info from image' });
-
-    const cardInfo = JSON.parse(jsonMatch[0]) as { name: string; setName: string | null; cardNumber: string | null };
-    if (!cardInfo.name) return res.status(422).json({ error: 'Could not identify card name' });
-
-    // Search TCG API — include card number for precision, fall back to name only
-    const numberPart = cardInfo.cardNumber?.split('/')[0].replace(/^0+/, '');
-    const queryWithNumber = numberPart
-      ? `name:"${cardInfo.name}" number:${numberPart}`
-      : `name:"${cardInfo.name}"`;
-
-    let data = await tcgFetch(`${TCG_BASE}/cards?q=${encodeURIComponent(queryWithNumber)}&pageSize=12&orderBy=-set.releaseDate`);
-
-    if ((!data.data || data.data.length === 0) && numberPart) {
-      data = await tcgFetch(`${TCG_BASE}/cards?q=${encodeURIComponent(`name:"${cardInfo.name}"`)}&pageSize=12&orderBy=-set.releaseDate`);
-    }
-
-    res.json({ identified: cardInfo, cards: data.data ?? [] });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

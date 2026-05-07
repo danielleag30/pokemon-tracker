@@ -2,11 +2,10 @@ import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Map, Library, Star, Palette, GitBranch,
-  AlertCircle, Copy, Menu, X, Plus, Search, Camera
+  AlertCircle, Copy, Menu, X, Plus, Search
 } from 'lucide-react';
 import { BatchAddModal } from './BatchAddModal';
 import { SearchAddModal } from './SearchAddModal';
-import { CameraModal } from './CameraModal';
 import { CollectionCode } from './CollectionCode';
 
 const links = [
@@ -24,7 +23,6 @@ export function NavBar() {
   const [open, setOpen] = useState(false);
   const [showBatch, setShowBatch] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
-  const [showCamera, setShowCamera] = useState(false);
 
   return (
     <>
@@ -34,19 +32,12 @@ export function NavBar() {
           <img src="/pokeball.svg" alt="Pokeball" className="w-7 h-7" />
           <span className="text-white font-bold text-lg tracking-tight">PokeTracker</span>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setShowSearch(true)}
             className="bg-pokemon-yellow text-pokemon-dark text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1"
           >
             <Plus size={12} /> Add Card
-          </button>
-          <button
-            onClick={() => setShowCamera(true)}
-            className="bg-white/20 text-white p-1.5 rounded-full hover:bg-white/30 transition-colors"
-            title="Scan card with camera"
-          >
-            <Camera size={16} />
           </button>
           <button onClick={() => setOpen(!open)} className="text-white p-1">
             {open ? <X size={22} /> : <Menu size={22} />}
@@ -98,20 +89,12 @@ export function NavBar() {
         </nav>
 
         <div className="p-4 border-t border-white/10 space-y-2">
-          <div className="flex gap-2">
-            <button
-              onClick={() => { setShowSearch(true); setOpen(false); }}
-              className="flex-1 bg-white/10 hover:bg-white/20 text-white font-semibold py-2 rounded-xl text-sm flex items-center justify-center gap-1.5 transition-colors"
-            >
-              <Search size={14} /> Search
-            </button>
-            <button
-              onClick={() => { setShowCamera(true); setOpen(false); }}
-              className="flex-1 bg-white/10 hover:bg-white/20 text-white font-semibold py-2 rounded-xl text-sm flex items-center justify-center gap-1.5 transition-colors"
-            >
-              <Camera size={14} /> Scan
-            </button>
-          </div>
+          <button
+            onClick={() => { setShowSearch(true); setOpen(false); }}
+            className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-2 rounded-xl text-sm flex items-center justify-center gap-1.5 transition-colors"
+          >
+            <Search size={14} /> Search & Add Card
+          </button>
           <button
             onClick={() => { setShowBatch(true); setOpen(false); }}
             className="w-full bg-pokemon-yellow hover:bg-yellow-400 text-pokemon-dark font-bold py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors"
@@ -125,7 +108,6 @@ export function NavBar() {
 
       {showBatch && <BatchAddModal onClose={() => setShowBatch(false)} />}
       {showSearch && <SearchAddModal onClose={() => setShowSearch(false)} />}
-      {showCamera && <CameraModal onClose={() => setShowCamera(false)} />}
     </>
   );
 }
