@@ -79,4 +79,7 @@ export const cardsApi = {
 
   getPokemonCards: (name: string) =>
     client.get(`/api/cards/pokemon/${encodeURIComponent(name)}`).then((r) => r.data),
+
+  scanCard: (imageBase64: string, mimeType = 'image/jpeg') =>
+    client.post('/api/cards/scan', { imageBase64, mimeType }).then((r) => r.data),
 };
