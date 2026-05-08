@@ -6,7 +6,7 @@ import { TypeBadge } from '../components/TypeBadge';
 import { CardGrid } from '../components/CardGrid';
 import { SearchBar } from '../components/SearchBar';
 import { ProgressBar } from '../components/ProgressBar';
-import { POKEMON_TYPES, TYPE_COLORS } from '../utils/constants';
+import { POKEMON_TYPES, TYPE_COLORS, TYPE_DISPLAY_NAMES } from '../utils/constants';
 
 export function ByType() {
   const [selectedType, setSelectedType] = useState<string | null>(null);
@@ -64,7 +64,7 @@ export function ByType() {
         <h1 className="text-2xl font-black text-gray-900">Browse by Type</h1>
         <p className="text-sm text-gray-500 mt-0.5">
           {selectedType
-            ? `Showing ${selectedType} cards — search by name or pick a set`
+            ? `Showing ${TYPE_DISPLAY_NAMES[selectedType] ?? selectedType} cards — search by name or pick a set`
             : 'Select a type to explore cards'}
         </p>
       </div>
@@ -100,7 +100,7 @@ export function ByType() {
                   outlineOffset: '2px',
                 }}
               >
-                {type}
+                {TYPE_DISPLAY_NAMES[type] ?? type}
               </button>
             );
           })}
@@ -118,7 +118,7 @@ export function ByType() {
               <SearchBar
                 value={cardSearch}
                 onChange={setCardSearch}
-                placeholder={`Search ${selectedType} cards by name across all sets…`}
+                placeholder={`Search ${TYPE_DISPLAY_NAMES[selectedType] ?? selectedType} cards by name across all sets…`}
               />
             </div>
             <div className="flex rounded-xl overflow-hidden border border-gray-200 bg-white shadow-sm shrink-0">
@@ -154,7 +154,7 @@ export function ByType() {
                   cards={crossCards}
                   collectionMap={collectionMap}
                   binderTags={binderTags}
-                  emptyMessage={`No ${selectedType} cards named "${cardSearch}" found.`}
+                  emptyMessage={`No ${TYPE_DISPLAY_NAMES[selectedType] ?? selectedType} cards named "${cardSearch}" found.`}
                 />
               )}
             </div>
@@ -197,7 +197,7 @@ export function ByType() {
                   cards={setFilteredCards}
                   collectionMap={collectionMap}
                   binderTags={binderTags}
-                  emptyMessage={`No ${selectedType} cards in this set.`}
+                  emptyMessage={`No ${TYPE_DISPLAY_NAMES[selectedType] ?? selectedType} cards in this set.`}
                 />
               )}
             </>
