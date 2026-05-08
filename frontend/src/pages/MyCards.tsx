@@ -4,6 +4,7 @@ import { Search, Loader } from 'lucide-react';
 import { useCollection, useCollectionStats } from '../hooks/useCollection';
 import { cardsApi } from '../utils/api';
 import { getMarketPrice, formatPrice } from '../utils/prices';
+import { CardLightbox } from '../components/CardLightbox';
 import { REGIONS, SERIES_TO_REGION, STARTER_LINES } from '../utils/constants';
 import type { TCGCard, CollectionEntry } from '../types';
 
@@ -31,6 +32,7 @@ export function MyCards() {
   const [groupBy, setGroupBy] = useState<GroupBy>('set');
   const [selectedBinder, setSelectedBinder] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [lightbox, setLightbox] = useState<OwnedCard | null>(null);
 
   const { data: collection } = useCollection();
   const { data: stats } = useCollectionStats();
@@ -327,7 +329,11 @@ export function MyCards() {
               {group.cards.map(({ entry, card }) => {
                 const price = getMarketPrice(card);
                 return (
-                  <div key={entry.card_id} className="relative group/card">
+                  <div
+                    key={entry.card_id}
+                    className="relative group/card cursor-zoom-in"
+                    onClick={() => setLightbox({ entry, card })}
+                  >
                     <img
                       src={card.images.small}
                       alt={card.name}
@@ -358,6 +364,14 @@ export function MyCards() {
             </div>
           </div>
         ))}
+
+      {lightbox && (
+        <CardLightbox
+          card={lightbox.card}
+          entry={lightbox.entry}
+          onClose={() => setLightbox(null)}
+        />
+      )}
     </div>
   );
 }

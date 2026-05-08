@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Plus, Minus, BookOpen, Check } from 'lucide-react';
 import { TypeBadge } from './TypeBadge';
+import { CardLightbox } from './CardLightbox';
 import { useAddCard, useUpdateCard, useRemoveCard } from '../hooks/useCollection';
 import type { TCGCard, CollectionEntry } from '../types';
 
@@ -12,6 +13,7 @@ interface Props {
 
 export function CardItem({ card, collectionEntry, binderTags = [] }: Props) {
   const [showBinder, setShowBinder] = useState(false);
+  const [showLightbox, setShowLightbox] = useState(false);
   const [binderInput, setBinderInput] = useState(collectionEntry?.binder_tag ?? '');
   const [imgError, setImgError] = useState(false);
 
@@ -48,6 +50,7 @@ export function CardItem({ card, collectionEntry, binderTags = [] }: Props) {
   const isPending = addCard.isPending || updateCard.isPending || removeCard.isPending;
 
   return (
+    <>
     <div
       className={`relative rounded-xl overflow-hidden shadow-md transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5 bg-white ${
         owned ? 'ring-2 ring-green-400' : 'opacity-80 hover:opacity-100'
@@ -65,7 +68,10 @@ export function CardItem({ card, collectionEntry, binderTags = [] }: Props) {
         </div>
       )}
 
-      <div className="aspect-[2.5/3.5] bg-gray-100 relative overflow-hidden">
+      <div
+        className="aspect-[2.5/3.5] bg-gray-100 relative overflow-hidden cursor-zoom-in"
+        onClick={() => setShowLightbox(true)}
+      >
         {!imgError ? (
           <img
             src={card.images.small}
@@ -164,5 +170,14 @@ export function CardItem({ card, collectionEntry, binderTags = [] }: Props) {
         )}
       </div>
     </div>
+
+    {showLightbox && (
+      <CardLightbox
+        card={card}
+        entry={collectionEntry}
+        onClose={() => setShowLightbox(false)}
+      />
+    )}
+    </>
   );
 }
