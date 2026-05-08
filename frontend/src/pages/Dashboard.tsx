@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Download, Upload, RefreshCw, Loader } from 'lucide-react';
+import { Download, Loader } from 'lucide-react';
 import { useCollection, useCollectionStats, useCollectionMap, useCollectionValue } from '../hooks/useCollection';
 import { useSets } from '../hooks/useCards';
 import { useCardSearch } from '../hooks/useCards';
@@ -13,8 +13,6 @@ import { formatPrice } from '../utils/prices';
 
 export function Dashboard() {
   const [search, setSearch] = useState('');
-  const [importing, setImporting] = useState(false);
-
   const { data: stats, isLoading: statsLoading } = useCollectionStats();
   const { data: setsData } = useSets();
   const collectionMap = useCollectionMap();
@@ -46,23 +44,6 @@ export function Dashboard() {
     URL.revokeObjectURL(url);
   };
 
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImporting(true);
-    try {
-      const text = await file.text();
-      const json = JSON.parse(text);
-      const coll = json.collection ?? json;
-      await collectionApi.importCollection(coll, true);
-      window.location.reload();
-    } catch (err) {
-      alert('Failed to import: invalid file format');
-    } finally {
-      setImporting(false);
-    }
-  };
-
   const statCards = [
     { label: 'Number of Unique Cards',   value: stats?.uniqueCards ?? 0,      color: '#3B4CCA', emoji: '🃏', format: (v: number) => v.toLocaleString() },
     { label: 'Total Amount of Cards',   value: stats?.totalCards ?? 0,       color: '#22c55e', emoji: '📦', format: (v: number) => v.toLocaleString() },
@@ -84,10 +65,6 @@ export function Dashboard() {
           >
             <Download size={14} /> Export
           </button>
-          <label className={`flex items-center gap-1.5 text-sm text-gray-600 border border-gray-200 bg-white hover:bg-gray-50 px-3 py-2 rounded-xl transition-colors cursor-pointer ${importing ? 'opacity-50' : ''}`}>
-            {importing ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />} Import
-            <input type="file" accept=".json" className="hidden" onChange={handleImport} />
-          </label>
         </div>
       </div>
 
