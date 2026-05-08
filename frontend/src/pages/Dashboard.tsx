@@ -64,8 +64,8 @@ export function Dashboard() {
   };
 
   const statCards = [
-    { label: 'Unique Cards',   value: stats?.uniqueCards ?? 0,      color: '#3B4CCA', emoji: '🃏', format: (v: number) => v.toLocaleString() },
-    { label: 'Total Copies',   value: stats?.totalCards ?? 0,       color: '#22c55e', emoji: '📦', format: (v: number) => v.toLocaleString() },
+    { label: 'Number of Unique Cards',   value: stats?.uniqueCards ?? 0,      color: '#3B4CCA', emoji: '🃏', format: (v: number) => v.toLocaleString() },
+    { label: 'Total Amount of Cards',   value: stats?.totalCards ?? 0,       color: '#22c55e', emoji: '📦', format: (v: number) => v.toLocaleString() },
     { label: 'Est. Value',     value: totalValue,                    color: '#f59e0b', emoji: '💰', format: (v: number) => valueLoading ? '…' : formatPrice(v) },
     { label: 'Binders',        value: stats?.binders.length ?? 0,   color: '#8b5cf6', emoji: '📚', format: (v: number) => v.toLocaleString() },
   ];
