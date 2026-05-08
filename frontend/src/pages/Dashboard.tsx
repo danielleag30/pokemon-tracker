@@ -21,7 +21,7 @@ export function Dashboard() {
   const { data: collection } = useCollection();
   const { totalValue, topCards, isLoading: valueLoading } = useCollectionValue();
 
-  const { data: searchResults, isFetching: searching } = useCardSearch(search, search.length >= 2);
+  const { data: searchResults, isFetching: searching } = useCardSearch(`name:${search}*`, search.length >= 2);
 
   const sets = setsData?.data ?? [];
 
