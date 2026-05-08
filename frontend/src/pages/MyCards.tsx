@@ -5,7 +5,7 @@ import { useCollection, useCollectionStats } from '../hooks/useCollection';
 import { cardsApi } from '../utils/api';
 import { getMarketPrice, formatPrice } from '../utils/prices';
 import { CardLightbox } from '../components/CardLightbox';
-import { REGIONS, SERIES_TO_REGION, STARTER_LINES } from '../utils/constants';
+import { REGIONS, SERIES_TO_REGION, STARTER_LINES, TYPE_DISPLAY_NAMES } from '../utils/constants';
 import type { TCGCard, CollectionEntry } from '../types';
 
 type GroupBy = 'set' | 'region' | 'starter' | 'type' | 'evolution' | 'value';
@@ -107,7 +107,7 @@ export function MyCards() {
         case 'type': {
           const type = item.card.types?.[0] ?? (item.card.supertype !== 'Pokémon' ? item.card.supertype : 'Colorless');
           key = type;
-          label = type;
+          label = TYPE_DISPLAY_NAMES[type] ?? type;
           break;
         }
         case 'evolution': {

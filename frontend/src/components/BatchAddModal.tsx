@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X, Search, CheckSquare, Square, Loader } from 'lucide-react';
 import { useSets, useSetCards } from '../hooks/useCards';
-import { useCollectionMap, useBatchAddCards } from '../hooks/useCollection';
+import { useCollectionMap, useBatchAddCards, useCollectionStats } from '../hooks/useCollection';
 import { ProgressBar } from './ProgressBar';
 import type { TCGCard } from '../types';
 
@@ -19,6 +19,8 @@ export function BatchAddModal({ onClose }: Props) {
   const { data: setCardsData, isLoading: cardsLoading } = useSetCards(selectedSet || null);
   const collectionMap = useCollectionMap();
   const batchAdd = useBatchAddCards();
+  const { data: stats } = useCollectionStats();
+  const existingBinders = stats?.binders.map((b) => b.binder_tag) ?? [];
 
   const sets = setsData?.data ?? [];
   const allCards: TCGCard[] = setCardsData?.data ?? [];
@@ -88,8 +90,12 @@ export function BatchAddModal({ onClose }: Props) {
                 value={binderTag}
                 onChange={(e) => setBinderTag(e.target.value)}
                 placeholder="e.g. Binder 1, Kanto binder…"
+                list="batch-binder-suggestions"
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pokemon-blue/30"
               />
+              <datalist id="batch-binder-suggestions">
+                {existingBinders.map((t) => <option key={t} value={t} />)}
+              </datalist>
             </div>
           </div>
 

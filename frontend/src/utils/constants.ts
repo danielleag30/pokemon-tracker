@@ -90,6 +90,11 @@ export const POKEMON_TYPES = [
   'Fire', 'Grass', 'Lightning', 'Metal', 'Psychic', 'Water',
 ];
 
+// Maps raw TCG API type names to user-facing display names
+export const TYPE_DISPLAY_NAMES: Record<string, string> = {
+  Colorless: 'Normal',
+};
+
 export const EVOLUTION_STAGES = [
   'Basic', 'Stage 1', 'Stage 2',
   'V', 'VMAX', 'VSTAR', 'GX', 'EX', 'Mega',

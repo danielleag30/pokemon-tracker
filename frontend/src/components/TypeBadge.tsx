@@ -1,4 +1,4 @@
-import { TYPE_COLORS } from '../utils/constants';
+import { TYPE_COLORS, TYPE_DISPLAY_NAMES } from '../utils/constants';
 
 interface Props {
   type: string;
@@ -14,7 +14,7 @@ export function TypeBadge({ type, size = 'md' }: Props) {
       className={`inline-block rounded-full ${sizeClass} leading-tight`}
       style={{ backgroundColor: colors.bg, color: colors.text }}
     >
-      {type}
+      {TYPE_DISPLAY_NAMES[type] ?? type}
     </span>
   );
 }

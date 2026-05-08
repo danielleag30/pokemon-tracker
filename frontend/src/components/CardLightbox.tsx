@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
-import { X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { X, BookOpen } from 'lucide-react';
 import { TypeBadge } from './TypeBadge';
 import { getMarketPrice, formatPrice } from '../utils/prices';
+import { useUpdateCard, useCollectionStats } from '../hooks/useCollection';
 import type { TCGCard, CollectionEntry } from '../types';
 
 interface Props {
@@ -11,11 +12,31 @@ interface Props {
 }
 
 export function CardLightbox({ card, entry, onClose }: Props) {
+  const [binderInput, setBinderInput] = useState(entry?.binder_tag ?? '');
+  const [binderSaved, setBinderSaved] = useState(false);
+
+  const updateCard = useUpdateCard();
+  const { data: stats } = useCollectionStats();
+  const binderTags = stats?.binders.map((b) => b.binder_tag) ?? [];
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, [onClose]);
+
+  const handleBinderSave = () => {
+    if (!entry) return;
+    updateCard.mutate(
+      { cardId: card.id, updates: { binderTag: binderInput || null } },
+      {
+        onSuccess: () => {
+          setBinderSaved(true);
+          setTimeout(() => setBinderSaved(false), 1500);
+        },
+      },
+    );
+  };
 
   const price = getMarketPrice(card);
 
@@ -87,13 +108,44 @@ export function CardLightbox({ card, entry, onClose }: Props) {
                   <span className="font-semibold text-green-600">{entry.quantity}×</span>
                 </div>
               )}
-              {entry?.binder_tag && (
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Binder</span>
-                  <span className="font-semibold text-purple-600">📚 {entry.binder_tag}</span>
-                </div>
-              )}
             </div>
+
+            {entry && (
+              <div className="pt-2 border-t">
+                <p className="text-xs font-semibold text-gray-500 mb-1.5 flex items-center gap-1">
+                  <BookOpen size={11} /> Binder
+                </p>
+                <div className="flex gap-1.5">
+                  <input
+                    type="text"
+                    value={binderInput}
+                    onChange={(e) => setBinderInput(e.target.value)}
+                    placeholder="Assign to binder…"
+                    list="lightbox-binder-suggestions"
+                    className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-pokemon-blue"
+                    onKeyDown={(e) => e.key === 'Enter' && handleBinderSave()}
+                  />
+                  <datalist id="lightbox-binder-suggestions">
+                    {binderTags.map((t) => <option key={t} value={t} />)}
+                  </datalist>
+                  <button
+                    onClick={handleBinderSave}
+                    disabled={updateCard.isPending}
+                    className="bg-pokemon-blue text-white text-xs px-2.5 py-1.5 rounded-lg transition-colors hover:bg-blue-700 disabled:opacity-50 whitespace-nowrap"
+                  >
+                    {binderSaved ? '✓ Saved' : 'Save'}
+                  </button>
+                </div>
+                {binderInput && (
+                  <button
+                    onClick={() => { setBinderInput(''); }}
+                    className="mt-1 text-xs text-gray-400 hover:text-red-500 transition-colors"
+                  >
+                    Clear binder
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
