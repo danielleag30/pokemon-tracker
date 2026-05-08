@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
-import { Search, Loader } from 'lucide-react';
-import { useCollection, useCollectionStats } from '../hooks/useCollection';
+import { Search, Loader, Trash2, CheckSquare, Square, X } from 'lucide-react';
+import { useCollection, useCollectionStats, useRemoveCard } from '../hooks/useCollection';
 import { cardsApi } from '../utils/api';
 import { getMarketPrice, formatPrice } from '../utils/prices';
 import { CardLightbox } from '../components/CardLightbox';
@@ -33,9 +33,12 @@ export function MyCards() {
   const [selectedBinder, setSelectedBinder] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [lightbox, setLightbox] = useState<OwnedCard | null>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const { data: collection } = useCollection();
   const { data: stats } = useCollectionStats();
+  const removeCard = useRemoveCard();
 
   // Extract unique set IDs from the user's card IDs (everything before the last "-")
   const ownedSetIds = useMemo(() => {
@@ -194,6 +197,32 @@ export function MyCards() {
 
   const binders = stats?.binders ?? [];
 
+  const toggleSelect = (cardId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(cardId) ? next.delete(cardId) : next.add(cardId);
+      return next;
+    });
+  };
+
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Remove ${selectedIds.size} card${selectedIds.size !== 1 ? 's' : ''} from your collection?`)) return;
+    await Promise.all([...selectedIds].map((id) => removeCard.mutateAsync(id)));
+    exitSelectMode();
+  };
+
+  const handleDeleteOne = (e: React.MouseEvent, cardId: string) => {
+    e.stopPropagation();
+    if (!confirm('Remove this card from your collection?')) return;
+    removeCard.mutate(cardId);
+  };
+
   const GROUP_OPTIONS: { value: GroupBy; label: string }[] = [
     { value: 'set',       label: 'By Set'       },
     { value: 'region',    label: 'By Region'    },
@@ -205,12 +234,40 @@ export function MyCards() {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-black text-gray-900">My Cards</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          {allOwnedCards.length} card{allOwnedCards.length !== 1 ? 's' : ''} in your collection
-          {selectedBinder && ` · ${filteredCards.length} in ${selectedBinder}`}
-        </p>
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-black text-gray-900">My Cards</h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {allOwnedCards.length} card{allOwnedCards.length !== 1 ? 's' : ''} in your collection
+            {selectedBinder && ` · ${filteredCards.length} in ${selectedBinder}`}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {selectMode ? (
+            <>
+              <button
+                onClick={handleDeleteSelected}
+                disabled={selectedIds.size === 0 || removeCard.isPending}
+                className="flex items-center gap-1.5 text-sm bg-red-500 text-white px-3 py-2 rounded-xl hover:bg-red-600 disabled:opacity-40 transition-colors"
+              >
+                <Trash2 size={14} /> Delete Selected ({selectedIds.size})
+              </button>
+              <button
+                onClick={exitSelectMode}
+                className="flex items-center gap-1.5 text-sm text-gray-600 border border-gray-200 bg-white hover:bg-gray-50 px-3 py-2 rounded-xl transition-colors"
+              >
+                <X size={14} /> Cancel
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setSelectMode(true)}
+              className="flex items-center gap-1.5 text-sm text-gray-600 border border-gray-200 bg-white hover:bg-gray-50 px-3 py-2 rounded-xl transition-colors"
+            >
+              <CheckSquare size={14} /> Select
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Controls */}
@@ -328,32 +385,51 @@ export function MyCards() {
             <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-2">
               {group.cards.map(({ entry, card }) => {
                 const price = getMarketPrice(card);
+                const isSelected = selectedIds.has(entry.card_id);
                 return (
                   <div
                     key={entry.card_id}
-                    className="relative group/card cursor-zoom-in"
-                    onClick={() => setLightbox({ entry, card })}
+                    className={`relative group/card cursor-pointer ${selectMode ? '' : 'cursor-zoom-in'} ${isSelected ? 'ring-2 ring-red-500 rounded-lg' : ''}`}
+                    onClick={() => selectMode ? toggleSelect(entry.card_id) : setLightbox({ entry, card })}
                   >
                     <img
                       src={card.images.small}
                       alt={card.name}
-                      className="w-full rounded-lg shadow-sm hover:scale-105 transition-transform"
+                      className={`w-full rounded-lg shadow-sm transition-transform ${selectMode ? '' : 'hover:scale-105'} ${isSelected ? 'opacity-70' : ''}`}
                       title={`${card.name} · ${card.set.name} #${card.number}${price != null ? ` · ${formatPrice(price)}` : ''}`}
                     />
+                    {/* Selection checkbox */}
+                    {selectMode && (
+                      <div className="absolute top-0.5 right-0.5">
+                        {isSelected
+                          ? <CheckSquare size={16} className="text-red-500 drop-shadow" />
+                          : <Square size={16} className="text-white drop-shadow" />}
+                      </div>
+                    )}
+                    {/* Per-card delete button (normal mode) */}
+                    {!selectMode && (
+                      <button
+                        onClick={(e) => handleDeleteOne(e, entry.card_id)}
+                        className="absolute top-0.5 left-0.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover/card:opacity-100 transition-opacity shadow hover:bg-red-600"
+                        title="Remove from collection"
+                      >
+                        <X size={10} />
+                      </button>
+                    )}
                     {/* Quantity badge */}
-                    {entry.quantity > 1 && (
+                    {entry.quantity > 1 && !selectMode && (
                       <span className="absolute top-0.5 right-0.5 bg-pokemon-blue text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow">
                         {entry.quantity}
                       </span>
                     )}
                     {/* Price badge */}
-                    {price != null && price >= 5 && (
-                      <span className="absolute top-0.5 left-0.5 bg-amber-500 text-white text-xs font-bold rounded px-1 shadow leading-tight">
+                    {price != null && price >= 5 && !selectMode && (
+                      <span className="absolute bottom-0.5 left-0.5 bg-amber-500 text-white text-xs font-bold rounded px-1 shadow leading-tight">
                         {formatPrice(price)}
                       </span>
                     )}
                     {/* Binder label on hover */}
-                    {entry.binder_tag && selectedBinder === null && (
+                    {entry.binder_tag && selectedBinder === null && !selectMode && (
                       <div className="absolute inset-x-0 bottom-0 bg-purple-700/80 text-white text-xs text-center py-0.5 rounded-b-lg truncate px-1 opacity-0 group-hover/card:opacity-100 transition-opacity">
                         {entry.binder_tag}
                       </div>
