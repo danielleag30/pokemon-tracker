@@ -329,7 +329,7 @@ export function MyCards() {
         )}
 
         {/* Foil tier filter */}
-        {usedFoilTiers.length > 1 && (
+        {usedFoilTiers.length > 0 && (
           <div>
             <p className="text-xs font-semibold text-gray-500 mb-2">Card Type</p>
             <div className="flex gap-1.5 flex-wrap">
