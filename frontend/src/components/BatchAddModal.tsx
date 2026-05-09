@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { X, Search, CheckSquare, Square, Loader } from 'lucide-react';
 import { useSets, useSetCards } from '../hooks/useCards';
 import { useCollectionMap, useBatchAddCards, useCollectionStats } from '../hooks/useCollection';
-import { getAvailableTiers, getCheapestTier } from '../utils/prices';
+import { getAvailableTiers, getDefaultTier } from '../utils/prices';
 import { FOIL_LABELS, type FoilType } from '../types';
 import { ProgressBar } from './ProgressBar';
 import type { TCGCard } from '../types';
@@ -34,8 +34,6 @@ export function BatchAddModal({ onClose }: Props) {
 
   const pokemonCards = filtered.filter((c) => c.supertype === 'Pokémon');
   const ownedInSet = allCards.filter((c) => collectionMap.has(c.id)).length;
-
-  const getDefaultTier = (card: TCGCard): FoilType | null => getCheapestTier(card);
 
   const toggle = (card: TCGCard) => {
     setSelected((prev) => {

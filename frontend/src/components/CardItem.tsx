@@ -3,7 +3,7 @@ import { Plus, Minus, BookOpen, Check } from 'lucide-react';
 import { TypeBadge } from './TypeBadge';
 import { CardLightbox } from './CardLightbox';
 import { useAddCard, useUpdateCard, useRemoveCard } from '../hooks/useCollection';
-import { getAvailableTiers, getCheapestTier } from '../utils/prices';
+import { getAvailableTiers, getDefaultTier } from '../utils/prices';
 import { FOIL_LABELS, type FoilType } from '../types';
 import type { TCGCard, CollectionEntry } from '../types';
 
@@ -15,7 +15,7 @@ interface Props {
 
 export function CardItem({ card, collectionEntry, binderTags = [] }: Props) {
   const availableTiers = getAvailableTiers(card);
-  const defaultTier = getCheapestTier(card);
+  const defaultTier = getDefaultTier(card);
 
   const [showBinder, setShowBinder] = useState(false);
   const [showLightbox, setShowLightbox] = useState(false);

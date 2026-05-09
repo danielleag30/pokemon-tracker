@@ -3,7 +3,7 @@ import { useQueries } from '@tanstack/react-query';
 import { Search, Loader, Trash2, CheckSquare, Square, X } from 'lucide-react';
 import { useCollection, useCollectionStats, useRemoveCard } from '../hooks/useCollection';
 import { cardsApi } from '../utils/api';
-import { getMarketPrice, formatPrice } from '../utils/prices';
+import { getMarketPrice, formatPrice, getDefaultTier } from '../utils/prices';
 import { CardLightbox } from '../components/CardLightbox';
 import { REGIONS, SERIES_TO_REGION, STARTER_LINES, TYPE_DISPLAY_NAMES } from '../utils/constants';
 import { FOIL_LABELS, FOIL_PRIORITY, type FoilType } from '../types';
@@ -77,9 +77,10 @@ export function MyCards() {
       .filter((item): item is OwnedCard => item.card !== undefined);
   }, [collection, cardDataMap]);
 
-  // Which foil tiers are actually used in the collection (null → 'normal')
+  // Which foil tiers are actually used in the collection
+  // null foil_type resolves to the card's most basic available version
   const usedFoilTiers = useMemo(() => {
-    const tiers = new Set(allOwnedCards.map(({ entry }) => entry.foil_type ?? 'normal'));
+    const tiers = new Set(allOwnedCards.map(({ entry, card }) => entry.foil_type ?? getDefaultTier(card) ?? 'normal'));
     return FOIL_PRIORITY.filter((t) => tiers.has(t));
   }, [allOwnedCards]);
 
@@ -87,7 +88,7 @@ export function MyCards() {
   const filteredCards = useMemo(() => {
     return allOwnedCards.filter(({ entry, card }) => {
       if (selectedBinder !== null && entry.binder_tag !== selectedBinder) return false;
-      if (selectedFoil !== null && (entry.foil_type ?? 'normal') !== selectedFoil) return false;
+      if (selectedFoil !== null && (entry.foil_type ?? getDefaultTier(card) ?? 'normal') !== selectedFoil) return false;
       if (search && !card.name.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     });

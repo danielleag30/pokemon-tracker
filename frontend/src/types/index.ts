@@ -71,14 +71,14 @@ export interface TCGCard {
 export type FoilType = 'normal' | 'reverseHolofoil' | 'holofoil' | '1stEditionNormal' | '1stEditionHolofoil';
 
 export const FOIL_LABELS: Record<FoilType, string> = {
-  normal: 'Normal',
+  normal: 'Non-Holo',
   reverseHolofoil: 'Reverse Holo',
   holofoil: 'Holofoil',
-  '1stEditionNormal': '1st Ed. Normal',
+  '1stEditionNormal': '1st Ed. Non-Holo',
   '1stEditionHolofoil': '1st Ed. Holo',
 };
 
-// Ordered cheapest → most expensive
+// Ordered most basic → most special
 export const FOIL_PRIORITY: FoilType[] = [
   'normal',
   '1stEditionNormal',
