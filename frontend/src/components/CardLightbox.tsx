@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, BookOpen, Trash2 } from 'lucide-react';
+import { X, BookOpen, Trash2, Plus, Minus } from 'lucide-react';
 import { TypeBadge } from './TypeBadge';
 import { getMarketPrice, formatPrice, getAvailableTiers } from '../utils/prices';
 import { useUpdateCard, useRemoveCard, useCollectionStats } from '../hooks/useCollection';
@@ -112,9 +112,28 @@ export function CardLightbox({ card, entry, onClose }: Props) {
                 </div>
               )}
               {entry && (
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center">
                   <span className="text-gray-500">Owned</span>
-                  <span className="font-semibold text-green-600">{entry.quantity}×</span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => {
+                        if (entry.quantity <= 1) return;
+                        updateCard.mutate({ cardId: card.id, updates: { quantity: entry.quantity - 1 } });
+                      }}
+                      disabled={entry.quantity <= 1 || updateCard.isPending}
+                      className="bg-gray-100 hover:bg-gray-200 text-gray-600 rounded p-0.5 transition-colors disabled:opacity-30"
+                    >
+                      <Minus size={11} />
+                    </button>
+                    <span className="font-bold text-green-600 w-5 text-center">{entry.quantity}</span>
+                    <button
+                      onClick={() => updateCard.mutate({ cardId: card.id, updates: { quantity: entry.quantity + 1 } })}
+                      disabled={updateCard.isPending}
+                      className="bg-gray-100 hover:bg-gray-200 text-gray-600 rounded p-0.5 transition-colors disabled:opacity-50"
+                    >
+                      <Plus size={11} />
+                    </button>
+                  </div>
                 </div>
               )}
               {entry && availableTiers.length > 0 && (

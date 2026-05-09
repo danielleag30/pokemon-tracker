@@ -22,6 +22,7 @@ export function CardItem({ card, collectionEntry, binderTags = [] }: Props) {
   const [binderInput, setBinderInput] = useState(collectionEntry?.binder_tag ?? '');
   const [imgError, setImgError] = useState(false);
   const [selectedTier, setSelectedTier] = useState<FoilType | null>(defaultTier);
+  const [addQty, setAddQty] = useState(1);
 
   const addCard = useAddCard();
   const updateCard = useUpdateCard();
@@ -31,7 +32,8 @@ export function CardItem({ card, collectionEntry, binderTags = [] }: Props) {
   const qty = collectionEntry?.quantity ?? 0;
 
   const handleAdd = () => {
-    addCard.mutate({ cardId: card.id, quantity: 1, binderTag: binderInput || undefined, foilType: selectedTier });
+    addCard.mutate({ cardId: card.id, quantity: addQty, binderTag: binderInput || undefined, foilType: selectedTier });
+    setAddQty(1);
   };
 
   const handleIncrement = () => {
@@ -132,13 +134,29 @@ export function CardItem({ card, collectionEntry, binderTags = [] }: Props) {
 
         <div className="mt-2 flex gap-1 items-center">
           {!owned ? (
-            <button
-              onClick={handleAdd}
-              disabled={isPending}
-              className="flex-1 bg-pokemon-blue hover:bg-blue-700 text-white text-xs font-semibold py-1.5 rounded-lg transition-colors disabled:opacity-50"
-            >
-              + Add
-            </button>
+            <>
+              <button
+                onClick={() => setAddQty((q) => Math.max(1, q - 1))}
+                disabled={addQty <= 1}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg p-1.5 transition-colors disabled:opacity-30"
+              >
+                <Minus size={12} />
+              </button>
+              <span className="w-5 text-center text-xs font-bold text-gray-700">{addQty}</span>
+              <button
+                onClick={() => setAddQty((q) => q + 1)}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg p-1.5 transition-colors"
+              >
+                <Plus size={12} />
+              </button>
+              <button
+                onClick={handleAdd}
+                disabled={isPending}
+                className="flex-1 bg-pokemon-blue hover:bg-blue-700 text-white text-xs font-semibold py-1.5 rounded-lg transition-colors disabled:opacity-50"
+              >
+                + Add
+              </button>
+            </>
           ) : (
             <>
               <button
