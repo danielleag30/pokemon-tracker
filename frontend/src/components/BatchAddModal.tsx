@@ -10,10 +10,15 @@ import { REGIONS, SERIES_TO_REGION } from '../utils/constants';
 import { cardsApi } from '../utils/api';
 import type { TCGCard } from '../types';
 
-type Mode = 'set' | 'region' | 'search';
+type Mode = 'set' | 'region' | 'type' | 'search';
 
 const SUBTYPE_KEYWORDS = ['GX', 'EX', 'V', 'VMAX', 'VSTAR', 'BREAK', 'Mega', 'LEGEND', 'Radiant', 'Prism Star'];
 const TYPE_KEYWORDS = ['Fire', 'Water', 'Grass', 'Lightning', 'Psychic', 'Fighting', 'Darkness', 'Metal', 'Dragon', 'Fairy', 'Colorless'];
+
+const TYPE_EMOJIS: Record<string, string> = {
+  Fire: '🔥', Water: '💧', Grass: '🌿', Lightning: '⚡', Psychic: '🔮',
+  Fighting: '🥊', Darkness: '🌑', Metal: '⚙️', Dragon: '🐉', Fairy: '🧚', Colorless: '⭐',
+};
 
 function buildTCGQuery(input: string): string {
   const term = input.trim();
@@ -32,6 +37,7 @@ export function BatchAddModal({ onClose }: Props) {
   const [mode, setMode] = useState<Mode>('set');
   const [selectedSet, setSelectedSet] = useState('');
   const [selectedRegion, setSelectedRegion] = useState('');
+  const [selectedType, setSelectedType] = useState('');
   const [cardFilter, setCardFilter] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -43,6 +49,10 @@ export function BatchAddModal({ onClose }: Props) {
   const { data: searchData, isFetching: searchLoading } = useBatchSearch(
     buildTCGQuery(debouncedSearch),
     mode === 'search' && debouncedSearch.length >= 2
+  );
+  const { data: typeData, isFetching: typeLoading } = useBatchSearch(
+    selectedType ? `types:${selectedType} supertype:Pokémon` : '',
+    mode === 'type' && !!selectedType
   );
   const collectionMap = useCollectionMap();
   const batchAdd = useBatchAddCards();
@@ -79,17 +89,19 @@ export function BatchAddModal({ onClose }: Props) {
 
   const allSetCards: TCGCard[] = setCardsData?.data ?? [];
   const searchResults: TCGCard[] = searchData?.data ?? [];
+  const typeResults: TCGCard[] = typeData?.data ?? [];
 
   // Cards shown in the active mode, filtered by name
   const activeCards = useMemo(() => {
     let base: TCGCard[] = [];
     if (mode === 'set') base = allSetCards;
     else if (mode === 'region') base = regionCards;
+    else if (mode === 'type') base = typeResults;
     else base = searchResults;
     if (!cardFilter) return base;
     const f = cardFilter.toLowerCase();
     return base.filter((c) => c.name.toLowerCase().includes(f) || c.number.includes(cardFilter));
-  }, [mode, allSetCards, regionCards, searchResults, cardFilter]);
+  }, [mode, allSetCards, regionCards, typeResults, searchResults, cardFilter]);
 
   const pokemonCards = activeCards.filter((c) => c.supertype === 'Pokémon');
 
@@ -126,6 +138,7 @@ export function BatchAddModal({ onClose }: Props) {
     setCardFilter('');
     setSearchInput('');
     setDebouncedSearch('');
+    setSelectedType('');
   };
 
   const handleAdd = async () => {
@@ -144,11 +157,13 @@ export function BatchAddModal({ onClose }: Props) {
   const isLoading =
     (mode === 'set' && setCardsLoading) ||
     (mode === 'region' && regionLoading) ||
+    (mode === 'type' && typeLoading) ||
     (mode === 'search' && searchLoading);
 
   const showBulkActions =
-    (mode === 'set' && selectedSet && activeCards.length > 0) ||
-    (mode === 'region' && selectedRegion && activeCards.length > 0) ||
+    (mode === 'set' && !!selectedSet && activeCards.length > 0) ||
+    (mode === 'region' && !!selectedRegion && activeCards.length > 0) ||
+    (mode === 'type' && !!selectedType && activeCards.length > 0) ||
     (mode === 'search' && searchResults.length > 0);
 
   const CardRow = ({ card }: { card: TCGCard }) => {
@@ -216,15 +231,15 @@ export function BatchAddModal({ onClose }: Props) {
 
         {/* Mode toggle */}
         <div className="px-4 pt-3 flex gap-2 flex-wrap">
-          {(['set', 'region', 'search'] as Mode[]).map((m) => (
+          {([['set', 'By Set'], ['region', 'By Region'], ['type', 'By Type'], ['search', 'By Search']] as [Mode, string][]).map(([m, label]) => (
             <button
               key={m}
               onClick={() => switchMode(m)}
-              className={`px-4 py-1.5 rounded-xl text-sm font-semibold transition-colors capitalize ${
+              className={`px-4 py-1.5 rounded-xl text-sm font-semibold transition-colors ${
                 mode === m ? 'bg-pokemon-blue text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              {m === 'set' ? 'By Set' : m === 'region' ? 'By Region' : 'By Search'}
+              {label}
             </button>
           ))}
         </div>
@@ -273,6 +288,27 @@ export function BatchAddModal({ onClose }: Props) {
                         style={selectedRegion === r.id ? { backgroundColor: r.color } : {}}
                       >
                         {r.emoji} {r.name}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {mode === 'type' && (
+                <>
+                  <label className="text-xs font-semibold text-gray-600 mb-1 block">Select Type</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {TYPE_KEYWORDS.map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => { setSelectedType(t); setSelected(new Map()); }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                          selectedType === t
+                            ? 'bg-pokemon-blue text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {TYPE_EMOJIS[t]} {t}
                       </button>
                     ))}
                   </div>
@@ -340,8 +376,8 @@ export function BatchAddModal({ onClose }: Props) {
             </div>
           )}
 
-          {/* Card filter (set + region modes) */}
-          {(mode === 'set' && selectedSet) || (mode === 'region' && selectedRegion && regionCards.length > 0) ? (
+          {/* Card filter (set + region + type modes) */}
+          {(mode === 'set' && selectedSet) || (mode === 'region' && selectedRegion && regionCards.length > 0) || (mode === 'type' && selectedType && typeResults.length > 0) ? (
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
@@ -382,6 +418,15 @@ export function BatchAddModal({ onClose }: Props) {
               <span className="text-4xl mb-2">🗺️</span>
               <p className="text-sm">Select a region above to browse all its cards</p>
             </div>
+          )}
+          {!isLoading && mode === 'type' && !selectedType && (
+            <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+              <span className="text-4xl mb-2">✨</span>
+              <p className="text-sm">Select a type above to browse its cards</p>
+            </div>
+          )}
+          {!isLoading && mode === 'type' && selectedType && typeResults.length === 0 && (
+            <p className="text-sm text-gray-400 text-center py-8">No {selectedType}-type cards found</p>
           )}
           {!isLoading && mode === 'search' && debouncedSearch.length < 2 && (
             <div className="flex flex-col items-center justify-center py-12 text-gray-400">

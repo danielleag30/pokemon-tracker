@@ -5,8 +5,7 @@ import { useCollection, useCollectionStats, useRemoveCard } from '../hooks/useCo
 import { cardsApi } from '../utils/api';
 import { getMarketPrice, formatPrice, getDefaultTier } from '../utils/prices';
 import { CardLightbox } from '../components/CardLightbox';
-import { REGIONS, SERIES_TO_REGION, STARTER_LINES, TYPE_DISPLAY_NAMES } from '../utils/constants';
-import type { Region } from '../types';
+import { SERIES_TO_REGION, STARTER_LINES, TYPE_DISPLAY_NAMES, REGIONS } from '../utils/constants';
 import { FOIL_LABELS, FOIL_PRIORITY, type FoilType } from '../types';
 import type { TCGCard, CollectionEntry } from '../types';
 
@@ -34,7 +33,6 @@ export function MyCards() {
   const [groupBy, setGroupBy] = useState<GroupBy>('set');
   const [selectedBinder, setSelectedBinder] = useState<string | null>(null);
   const [selectedFoil, setSelectedFoil] = useState<FoilType | null>(null);
-  const [selectedRegion, setSelectedRegion] = useState<Region | null>(null);
   const [search, setSearch] = useState('');
   const [lightbox, setLightbox] = useState<OwnedCard | null>(null);
   const [selectMode, setSelectMode] = useState(false);
@@ -86,22 +84,15 @@ export function MyCards() {
     return FOIL_PRIORITY.filter((t) => tiers.has(t));
   }, [allOwnedCards]);
 
-  // Regions that have at least one owned card
-  const usedRegions = useMemo(() => {
-    const ids = new Set(allOwnedCards.map(({ card }) => SERIES_TO_REGION[card.set.series] as Region | undefined).filter(Boolean));
-    return REGIONS.filter((r) => ids.has(r.id));
-  }, [allOwnedCards]);
-
-  // Apply binder + region + foil + search filters
+  // Apply binder + foil + search filters
   const filteredCards = useMemo(() => {
     return allOwnedCards.filter(({ entry, card }) => {
       if (selectedBinder !== null && entry.binder_tag !== selectedBinder) return false;
-      if (selectedRegion !== null && SERIES_TO_REGION[card.set.series] !== selectedRegion) return false;
       if (selectedFoil !== null && (entry.foil_type ?? getDefaultTier(card) ?? 'normal') !== selectedFoil) return false;
       if (search && !card.name.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     });
-  }, [allOwnedCards, selectedBinder, selectedRegion, selectedFoil, search]);
+  }, [allOwnedCards, selectedBinder, selectedFoil, search]);
 
   // Group and sort cards by the chosen grouping
   const groups = useMemo((): Group[] => {
@@ -332,35 +323,6 @@ export function MyCards() {
                 >
                   📚 {binder_tag}
                   <span className="ml-1 opacity-70">({count})</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Region filter */}
-        {usedRegions.length > 1 && (
-          <div>
-            <p className="text-xs font-semibold text-gray-500 mb-2">Region</p>
-            <div className="flex gap-1.5 flex-wrap">
-              <button
-                onClick={() => setSelectedRegion(null)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
-                  selectedRegion === null ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                All
-              </button>
-              {usedRegions.map((r) => (
-                <button
-                  key={r.id}
-                  onClick={() => setSelectedRegion(selectedRegion === r.id ? null : r.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
-                    selectedRegion === r.id ? 'text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                  style={selectedRegion === r.id ? { backgroundColor: r.color } : {}}
-                >
-                  {r.emoji} {r.name}
                 </button>
               ))}
             </div>

@@ -114,14 +114,23 @@ export function Dashboard() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {regionProgress.map((r) => (
-            <Link key={r.id} to={`/region/${r.id}`} className="block hover:bg-gray-50 rounded-xl p-2 -m-2 transition-colors">
+            <div key={r.id} className="rounded-xl p-2 -m-2">
               <div className="flex items-center gap-2 mb-1.5">
                 <span className="text-base">{r.emoji}</span>
-                <span className="text-sm font-semibold text-gray-700">{r.name}</span>
-                <span className="text-xs text-gray-400 ml-auto">Gen {r.generation}</span>
+                <Link to={`/region/${r.id}`} className="text-sm font-semibold text-gray-700 hover:text-pokemon-blue transition-colors">
+                  {r.name}
+                </Link>
+                <span className="text-xs text-gray-400">Gen {r.generation}</span>
+                <Link
+                  to={`/region/${r.id}?all=1`}
+                  className="ml-auto text-xs font-semibold hover:underline transition-colors"
+                  style={{ color: r.color }}
+                >
+                  See All →
+                </Link>
               </div>
               <ProgressBar value={r.owned} max={r.total} color={r.color} height="sm" />
-            </Link>
+            </div>
           ))}
         </div>
       </div>

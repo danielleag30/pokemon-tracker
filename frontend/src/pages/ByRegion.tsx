@@ -1,17 +1,20 @@
-import { useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useState, useMemo, useEffect } from 'react';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, Loader } from 'lucide-react';
+import { useQueries } from '@tanstack/react-query';
 import { useSets, useSetCards, useCardSearch } from '../hooks/useCards';
 import { useCollectionMap } from '../hooks/useCollection';
 import { ProgressBar } from '../components/ProgressBar';
 import { CardGrid } from '../components/CardGrid';
 import { SearchBar } from '../components/SearchBar';
 import { REGIONS, SERIES_TO_REGION } from '../utils/constants';
-import type { TCGSet } from '../types';
+import { cardsApi } from '../utils/api';
+import type { TCGSet, TCGCard } from '../types';
 
 export function ByRegion() {
   const { regionId } = useParams<{ regionId?: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   // layer 1 — region list
   const [regionSearch, setRegionSearch] = useState('');
@@ -19,6 +22,16 @@ export function ByRegion() {
   // layer 2 — set list
   const [selectedSet, setSelectedSet] = useState<TCGSet | null>(null);
   const [setSearch, setSetSearch] = useState('');
+
+  // layer 2.5 — see all cards in region (no set selected)
+  const [showAll, setShowAll] = useState(false);
+  const [allCardSearch, setAllCardSearch] = useState('');
+  const [allFilter, setAllFilter] = useState<'all' | 'owned' | 'missing'>('all');
+
+  // honour ?all=1 from Dashboard link
+  useEffect(() => {
+    if (searchParams.get('all') === '1') setShowAll(true);
+  }, [searchParams]);
 
   // layer 3 — card grid
   const [cardSearch, setCardSearch] = useState('');
@@ -56,6 +69,31 @@ export function ByRegion() {
   const crossSetCards = (crossSetResults?.data ?? []).filter(
     (c) => regionId && SERIES_TO_REGION[c.set.series] === regionId
   );
+
+  // See All — load every set in the region
+  const allRegionSetIds = regionId ? regionSets.map((s) => s.id) : [];
+  const allRegionQueries = useQueries({
+    queries: allRegionSetIds.map((setId) => ({
+      queryKey: ['set-cards', setId],
+      queryFn: () => cardsApi.getSetCards(setId),
+      staleTime: 60 * 60_000,
+      enabled: showAll && !!regionId,
+    })),
+  });
+  const allRegionLoading = allRegionQueries.some((q) => q.isLoading);
+  const allRegionCards = useMemo(() => {
+    const cards: TCGCard[] = [];
+    allRegionQueries.forEach((q) => q.data?.data?.forEach((c: TCGCard) => cards.push(c)));
+    return cards;
+  }, [allRegionQueries]);
+  const filteredAllCards = useMemo(() => {
+    return allRegionCards.filter((c) => {
+      const matchSearch = !allCardSearch || c.name.toLowerCase().includes(allCardSearch.toLowerCase()) || c.number.includes(allCardSearch);
+      const owned = collectionMap.has(c.id);
+      const matchFilter = allFilter === 'all' || (allFilter === 'owned' && owned) || (allFilter === 'missing' && !owned);
+      return matchSearch && matchFilter;
+    });
+  }, [allRegionCards, allCardSearch, allFilter, collectionMap]);
 
   // ── Layer 1: Region selector ──────────────────────────────────────────────
   if (!regionId) {
@@ -108,6 +146,63 @@ export function ByRegion() {
     );
   }
 
+  // ── Layer 2.5: See All cards in region ───────────────────────────────────
+  if (regionId && showAll) {
+    const ownedTotal = allRegionCards.filter((c) => collectionMap.has(c.id)).length;
+    return (
+      <div className="space-y-4 animate-fade-in">
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            onClick={() => { setShowAll(false); setAllCardSearch(''); setAllFilter('all'); }}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <ChevronLeft size={20} />
+          </button>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-black text-gray-900">{region?.emoji} All {region?.name} Cards</h1>
+            <p className="text-xs text-gray-400">{allRegionCards.length} total · {ownedTotal} owned</p>
+          </div>
+        </div>
+
+        {!allRegionLoading && allRegionCards.length > 0 && (
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <ProgressBar value={ownedTotal} max={allRegionCards.length} color={region?.color ?? '#3B4CCA'} label={`${region?.name} completion`} />
+          </div>
+        )}
+
+        <div className="flex gap-3 flex-wrap">
+          <div className="flex-1 min-w-48">
+            <SearchBar value={allCardSearch} onChange={setAllCardSearch} placeholder="Search by name or number…" />
+          </div>
+          <div className="flex rounded-xl overflow-hidden border border-gray-200 bg-white shadow-sm">
+            {(['all', 'owned', 'missing'] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setAllFilter(f)}
+                className={`px-3 py-2 text-xs font-semibold capitalize transition-colors ${allFilter === f ? 'bg-pokemon-blue text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {allRegionLoading ? (
+          <div className="flex items-center justify-center py-12 text-gray-500">
+            <Loader size={20} className="animate-spin mr-2" /> Loading all {region?.name} cards…
+          </div>
+        ) : (
+          <CardGrid
+            cards={filteredAllCards}
+            collectionMap={collectionMap}
+            binderTags={binderTags}
+            emptyMessage="No cards match your filter."
+          />
+        )}
+      </div>
+    );
+  }
+
   // ── Layer 2: Set list + cross-set search ──────────────────────────────────
   if (!selectedSet) {
     const filteredSets = regionSets.filter((s) =>
@@ -118,14 +213,21 @@ export function ByRegion() {
 
     return (
       <div className="space-y-4 animate-fade-in">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <button onClick={() => navigate('/region')} className="text-gray-400 hover:text-gray-600 transition-colors">
             <ChevronLeft size={20} />
           </button>
-          <div>
+          <div className="flex-1">
             <h1 className="text-2xl font-black text-gray-900">{region?.emoji} {region?.name}</h1>
             <p className="text-sm text-gray-500">{regionSets.length} sets</p>
           </div>
+          <button
+            onClick={() => setShowAll(true)}
+            className="text-sm font-semibold px-4 py-2 rounded-xl transition-colors text-white"
+            style={{ backgroundColor: region?.color ?? '#3B4CCA' }}
+          >
+            See All Cards →
+          </button>
         </div>
 
         <SearchBar
