@@ -1,15 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { X, Search, CheckSquare, Square, Loader } from 'lucide-react';
+import { useQueries } from '@tanstack/react-query';
 import { useSets, useSetCards, useBatchSearch } from '../hooks/useCards';
 import { useCollectionMap, useBatchAddCards, useCollectionStats } from '../hooks/useCollection';
 import { getAvailableTiers, getDefaultTier } from '../utils/prices';
 import { FOIL_LABELS, type FoilType } from '../types';
 import { ProgressBar } from './ProgressBar';
+import { REGIONS, SERIES_TO_REGION } from '../utils/constants';
+import { cardsApi } from '../utils/api';
 import type { TCGCard } from '../types';
 
-type Mode = 'set' | 'search';
+type Mode = 'set' | 'region' | 'search';
 
-// Maps plain user input to TCG API query syntax
 const SUBTYPE_KEYWORDS = ['GX', 'EX', 'V', 'VMAX', 'VSTAR', 'BREAK', 'Mega', 'LEGEND', 'Radiant', 'Prism Star'];
 const TYPE_KEYWORDS = ['Fire', 'Water', 'Grass', 'Lightning', 'Psychic', 'Fighting', 'Darkness', 'Metal', 'Dragon', 'Fairy', 'Colorless'];
 
@@ -29,14 +31,15 @@ interface Props {
 export function BatchAddModal({ onClose }: Props) {
   const [mode, setMode] = useState<Mode>('set');
   const [selectedSet, setSelectedSet] = useState('');
-  const [setFilter, setSetFilter] = useState('');
+  const [selectedRegion, setSelectedRegion] = useState('');
+  const [cardFilter, setCardFilter] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selected, setSelected] = useState<Map<string, FoilType | null>>(new Map());
   const [binderTag, setBinderTag] = useState('');
 
   const { data: setsData, isLoading: setsLoading } = useSets();
-  const { data: setCardsData, isLoading: cardsLoading } = useSetCards(selectedSet || null);
+  const { data: setCardsData, isLoading: setCardsLoading } = useSetCards(selectedSet || null);
   const { data: searchData, isFetching: searchLoading } = useBatchSearch(
     buildTCGQuery(debouncedSearch),
     mode === 'search' && debouncedSearch.length >= 2
@@ -46,22 +49,56 @@ export function BatchAddModal({ onClose }: Props) {
   const { data: stats } = useCollectionStats();
   const existingBinders = stats?.binders.map((b) => b.binder_tag) ?? [];
 
-  // Debounce search input by 400ms
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchInput), 400);
     return () => clearTimeout(t);
   }, [searchInput]);
 
   const sets = setsData?.data ?? [];
+
+  // Sets belonging to the selected region
+  const regionSetIds = useMemo(() => {
+    if (!selectedRegion) return [];
+    return sets.filter((s) => SERIES_TO_REGION[s.series] === selectedRegion).map((s) => s.id);
+  }, [selectedRegion, sets]);
+
+  // Fetch all cards for every set in the region (cached server-side)
+  const regionSetQueries = useQueries({
+    queries: regionSetIds.map((setId) => ({
+      queryKey: ['set-cards', setId],
+      queryFn: () => cardsApi.getSetCards(setId),
+      staleTime: 60 * 60_000,
+    })),
+  });
+  const regionLoading = regionSetQueries.some((q) => q.isLoading);
+  const regionCards = useMemo(() => {
+    const cards: TCGCard[] = [];
+    regionSetQueries.forEach((q) => q.data?.data?.forEach((c: TCGCard) => cards.push(c)));
+    return cards;
+  }, [regionSetQueries]);
+
   const allSetCards: TCGCard[] = setCardsData?.data ?? [];
   const searchResults: TCGCard[] = searchData?.data ?? [];
 
-  const filteredSetCards = allSetCards.filter((c) =>
-    c.name.toLowerCase().includes(setFilter.toLowerCase()) || c.number.includes(setFilter)
-  );
-  const pokemonSetCards = filteredSetCards.filter((c) => c.supertype === 'Pokémon');
-  const ownedInSet = allSetCards.filter((c) => collectionMap.has(c.id)).length;
+  // Cards shown in the active mode, filtered by name
+  const activeCards = useMemo(() => {
+    let base: TCGCard[] = [];
+    if (mode === 'set') base = allSetCards;
+    else if (mode === 'region') base = regionCards;
+    else base = searchResults;
+    if (!cardFilter) return base;
+    const f = cardFilter.toLowerCase();
+    return base.filter((c) => c.name.toLowerCase().includes(f) || c.number.includes(cardFilter));
+  }, [mode, allSetCards, regionCards, searchResults, cardFilter]);
 
+  const pokemonCards = activeCards.filter((c) => c.supertype === 'Pokémon');
+
+  const ownedCount = useMemo(
+    () => activeCards.filter((c) => collectionMap.has(c.id)).length,
+    [activeCards, collectionMap]
+  );
+
+  // Tier helpers
   const toggle = (card: TCGCard) => {
     setSelected((prev) => {
       const next = new Map(prev);
@@ -78,15 +115,15 @@ export function BatchAddModal({ onClose }: Props) {
     });
   };
 
-  const selectAll = () => setSelected(new Map(pokemonSetCards.map((c) => [c.id, getDefaultTier(c)])));
+  const selectAll = () => setSelected(new Map(pokemonCards.map((c) => [c.id, getDefaultTier(c)])));
   const selectMissing = () =>
-    setSelected(new Map(pokemonSetCards.filter((c) => !collectionMap.has(c.id)).map((c) => [c.id, getDefaultTier(c)])));
+    setSelected(new Map(pokemonCards.filter((c) => !collectionMap.has(c.id)).map((c) => [c.id, getDefaultTier(c)])));
   const clearAll = () => setSelected(new Map());
 
   const switchMode = (m: Mode) => {
     setMode(m);
     setSelected(new Map());
-    setSetFilter('');
+    setCardFilter('');
     setSearchInput('');
     setDebouncedSearch('');
   };
@@ -103,6 +140,16 @@ export function BatchAddModal({ onClose }: Props) {
     setSelected(new Map());
     onClose();
   };
+
+  const isLoading =
+    (mode === 'set' && setCardsLoading) ||
+    (mode === 'region' && regionLoading) ||
+    (mode === 'search' && searchLoading);
+
+  const showBulkActions =
+    (mode === 'set' && selectedSet && activeCards.length > 0) ||
+    (mode === 'region' && selectedRegion && activeCards.length > 0) ||
+    (mode === 'search' && searchResults.length > 0);
 
   const CardRow = ({ card }: { card: TCGCard }) => {
     const isOwned = collectionMap.has(card.id);
@@ -168,69 +215,88 @@ export function BatchAddModal({ onClose }: Props) {
         </div>
 
         {/* Mode toggle */}
-        <div className="px-4 pt-3 flex gap-2">
-          <button
-            onClick={() => switchMode('set')}
-            className={`px-4 py-1.5 rounded-xl text-sm font-semibold transition-colors ${
-              mode === 'set' ? 'bg-pokemon-blue text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            By Set
-          </button>
-          <button
-            onClick={() => switchMode('search')}
-            className={`px-4 py-1.5 rounded-xl text-sm font-semibold transition-colors ${
-              mode === 'search' ? 'bg-pokemon-blue text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            By Search
-          </button>
+        <div className="px-4 pt-3 flex gap-2 flex-wrap">
+          {(['set', 'region', 'search'] as Mode[]).map((m) => (
+            <button
+              key={m}
+              onClick={() => switchMode(m)}
+              className={`px-4 py-1.5 rounded-xl text-sm font-semibold transition-colors capitalize ${
+                mode === m ? 'bg-pokemon-blue text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {m === 'set' ? 'By Set' : m === 'region' ? 'By Region' : 'By Search'}
+            </button>
+          ))}
         </div>
 
         {/* Controls */}
         <div className="p-4 border-b space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
-            {/* Set selector or search input */}
-            {mode === 'set' ? (
-              <div>
-                <label className="text-xs font-semibold text-gray-600 mb-1 block">Select Set</label>
-                {setsLoading ? (
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
-                    <Loader size={14} className="animate-spin" /> Loading sets…
-                  </div>
-                ) : (
-                  <select
-                    value={selectedSet}
-                    onChange={(e) => { setSelectedSet(e.target.value); setSelected(new Map()); }}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pokemon-blue/30"
-                  >
-                    <option value="">— Choose a set —</option>
-                    {sets.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name} ({s.series})</option>
+            {/* Mode-specific selector */}
+            <div>
+              {mode === 'set' && (
+                <>
+                  <label className="text-xs font-semibold text-gray-600 mb-1 block">Select Set</label>
+                  {setsLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <Loader size={14} className="animate-spin" /> Loading sets…
+                    </div>
+                  ) : (
+                    <select
+                      value={selectedSet}
+                      onChange={(e) => { setSelectedSet(e.target.value); setSelected(new Map()); }}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pokemon-blue/30"
+                    >
+                      <option value="">— Choose a set —</option>
+                      {sets.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name} ({s.series})</option>
+                      ))}
+                    </select>
+                  )}
+                </>
+              )}
+
+              {mode === 'region' && (
+                <>
+                  <label className="text-xs font-semibold text-gray-600 mb-1 block">Select Region</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {REGIONS.map((r) => (
+                      <button
+                        key={r.id}
+                        onClick={() => { setSelectedRegion(r.id); setSelected(new Map()); }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                          selectedRegion === r.id
+                            ? 'text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                        style={selectedRegion === r.id ? { backgroundColor: r.color } : {}}
+                      >
+                        {r.emoji} {r.name}
+                      </button>
                     ))}
-                  </select>
-                )}
-              </div>
-            ) : (
-              <div>
-                <label className="text-xs font-semibold text-gray-600 mb-1 block">Search Cards</label>
-                <div className="relative">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    value={searchInput}
-                    onChange={(e) => setSearchInput(e.target.value)}
-                    placeholder="e.g. GX, VMAX, Pikachu, Fire…"
-                    autoFocus
-                    className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pokemon-blue/30"
-                  />
-                </div>
-                <p className="text-xs text-gray-400 mt-1">
-                  Try: GX · VMAX · VSTAR · EX · Pikachu · Fire · Psychic
-                </p>
-              </div>
-            )}
+                  </div>
+                </>
+              )}
+
+              {mode === 'search' && (
+                <>
+                  <label className="text-xs font-semibold text-gray-600 mb-1 block">Search Cards</label>
+                  <div className="relative">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      value={searchInput}
+                      onChange={(e) => setSearchInput(e.target.value)}
+                      placeholder="e.g. GX, VMAX, Pikachu, Fire…"
+                      autoFocus
+                      className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pokemon-blue/30"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">Try: GX · VMAX · VSTAR · EX · Pikachu · Fire</p>
+                </>
+              )}
+            </div>
 
             {/* Binder tag */}
             <div>
@@ -249,14 +315,21 @@ export function BatchAddModal({ onClose }: Props) {
             </div>
           </div>
 
-          {/* Set progress + bulk actions */}
-          {mode === 'set' && selectedSet && allSetCards.length > 0 && (
-            <div className="flex items-center justify-between">
-              <ProgressBar value={ownedInSet} max={allSetCards.length} color="#22c55e" showPercent />
-              <div className="flex gap-2 ml-4 shrink-0">
-                <button onClick={selectMissing} className="text-xs bg-orange-100 text-orange-700 hover:bg-orange-200 px-2 py-1 rounded-lg transition-colors font-medium">
-                  Select Missing
-                </button>
+          {/* Progress + bulk actions */}
+          {showBulkActions && !isLoading && (
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              {mode !== 'search' && (
+                <ProgressBar value={ownedCount} max={activeCards.length} color="#22c55e" showPercent />
+              )}
+              {mode === 'search' && (
+                <span className="text-xs text-gray-500">{searchResults.length} result{searchResults.length !== 1 ? 's' : ''}</span>
+              )}
+              <div className="flex gap-2 shrink-0">
+                {mode !== 'search' && (
+                  <button onClick={selectMissing} className="text-xs bg-orange-100 text-orange-700 hover:bg-orange-200 px-2 py-1 rounded-lg transition-colors font-medium">
+                    Select Missing
+                  </button>
+                )}
                 <button onClick={selectAll} className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 px-2 py-1 rounded-lg transition-colors font-medium">
                   Select All
                 </button>
@@ -267,84 +340,57 @@ export function BatchAddModal({ onClose }: Props) {
             </div>
           )}
 
-          {/* Search bulk actions */}
-          {mode === 'search' && searchResults.length > 0 && (
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-gray-500">{searchResults.length} result{searchResults.length !== 1 ? 's' : ''}</span>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setSelected(new Map(searchResults.map((c) => [c.id, getDefaultTier(c)])))}
-                  className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 px-2 py-1 rounded-lg transition-colors font-medium"
-                >
-                  Select All
-                </button>
-                <button onClick={clearAll} className="text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 px-2 py-1 rounded-lg transition-colors font-medium">
-                  Clear
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Set card filter */}
-          {mode === 'set' && selectedSet && (
+          {/* Card filter (set + region modes) */}
+          {(mode === 'set' && selectedSet) || (mode === 'region' && selectedRegion && regionCards.length > 0) ? (
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                value={setFilter}
-                onChange={(e) => setSetFilter(e.target.value)}
-                placeholder="Filter cards in set…"
+                value={cardFilter}
+                onChange={(e) => setCardFilter(e.target.value)}
+                placeholder="Filter cards…"
                 className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pokemon-blue/30"
               />
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Card list */}
         <div className="flex-1 overflow-y-auto p-4">
-          {/* Set loading */}
-          {mode === 'set' && cardsLoading && (
+          {isLoading && (
             <div className="flex items-center justify-center py-12 text-gray-500">
-              <Loader size={20} className="animate-spin mr-2" /> Loading cards…
+              <Loader size={20} className="animate-spin mr-2" />
+              {mode === 'region' ? `Loading ${REGIONS.find(r => r.id === selectedRegion)?.name} cards…` : 'Loading…'}
             </div>
           )}
 
-          {/* Search loading */}
-          {mode === 'search' && searchLoading && (
-            <div className="flex items-center justify-center py-12 text-gray-500">
-              <Loader size={20} className="animate-spin mr-2" /> Searching…
-            </div>
-          )}
-
-          {/* Set results */}
-          {mode === 'set' && !cardsLoading && selectedSet && (
+          {!isLoading && activeCards.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-              {filteredSetCards.map((card) => <CardRow key={card.id} card={card} />)}
+              {activeCards.map((card) => <CardRow key={card.id} card={card} />)}
             </div>
           )}
 
-          {/* Search results */}
-          {mode === 'search' && !searchLoading && debouncedSearch.length >= 2 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-              {searchResults.length > 0
-                ? searchResults.map((card) => <CardRow key={card.id} card={card} />)
-                : <p className="text-sm text-gray-400 col-span-2 text-center py-8">No cards found for "{debouncedSearch}"</p>
-              }
-            </div>
-          )}
-
-          {/* Empty states */}
-          {mode === 'set' && !selectedSet && (
+          {/* Empty / prompt states */}
+          {!isLoading && mode === 'set' && !selectedSet && (
             <div className="flex flex-col items-center justify-center py-12 text-gray-400">
               <span className="text-4xl mb-2">📦</span>
               <p className="text-sm">Select a set above to browse cards</p>
             </div>
           )}
-          {mode === 'search' && debouncedSearch.length < 2 && !searchLoading && (
+          {!isLoading && mode === 'region' && !selectedRegion && (
+            <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+              <span className="text-4xl mb-2">🗺️</span>
+              <p className="text-sm">Select a region above to browse all its cards</p>
+            </div>
+          )}
+          {!isLoading && mode === 'search' && debouncedSearch.length < 2 && (
             <div className="flex flex-col items-center justify-center py-12 text-gray-400">
               <span className="text-4xl mb-2">🔍</span>
               <p className="text-sm">Type at least 2 characters to search</p>
             </div>
+          )}
+          {!isLoading && mode === 'search' && debouncedSearch.length >= 2 && searchResults.length === 0 && (
+            <p className="text-sm text-gray-400 text-center py-8">No cards found for "{debouncedSearch}"</p>
           )}
         </div>
 
