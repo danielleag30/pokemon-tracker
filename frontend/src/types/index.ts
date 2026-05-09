@@ -68,10 +68,30 @@ export interface TCGCard {
   };
 }
 
+export type FoilType = 'normal' | 'reverseHolofoil' | 'holofoil' | '1stEditionNormal' | '1stEditionHolofoil';
+
+export const FOIL_LABELS: Record<FoilType, string> = {
+  normal: 'Normal',
+  reverseHolofoil: 'Reverse Holo',
+  holofoil: 'Holofoil',
+  '1stEditionNormal': '1st Ed. Normal',
+  '1stEditionHolofoil': '1st Ed. Holo',
+};
+
+// Ordered cheapest → most expensive
+export const FOIL_PRIORITY: FoilType[] = [
+  'normal',
+  '1stEditionNormal',
+  'reverseHolofoil',
+  'holofoil',
+  '1stEditionHolofoil',
+];
+
 export interface CollectionEntry {
   card_id: string;
   quantity: number;
   binder_tag: string | null;
+  foil_type: FoilType | null;
   added_at: string;
   updated_at: string;
 }

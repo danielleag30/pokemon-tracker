@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { X, BookOpen } from 'lucide-react';
 import { TypeBadge } from './TypeBadge';
-import { getMarketPrice, formatPrice } from '../utils/prices';
+import { getMarketPrice, formatPrice, getAvailableTiers } from '../utils/prices';
 import { useUpdateCard, useCollectionStats } from '../hooks/useCollection';
+import { FOIL_LABELS, type FoilType } from '../types';
 import type { TCGCard, CollectionEntry } from '../types';
 
 interface Props {
@@ -14,10 +15,15 @@ interface Props {
 export function CardLightbox({ card, entry, onClose }: Props) {
   const [binderInput, setBinderInput] = useState(entry?.binder_tag ?? '');
   const [binderSaved, setBinderSaved] = useState(false);
+  const [foilSaved, setFoilSaved] = useState(false);
 
   const updateCard = useUpdateCard();
   const { data: stats } = useCollectionStats();
   const binderTags = stats?.binders.map((b) => b.binder_tag) ?? [];
+
+  const availableTiers = getAvailableTiers(card);
+  const [foilType, setFoilType] = useState<FoilType | null>(entry?.foil_type ?? null);
+  const price = getMarketPrice(card, foilType);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -29,16 +35,18 @@ export function CardLightbox({ card, entry, onClose }: Props) {
     if (!entry) return;
     updateCard.mutate(
       { cardId: card.id, updates: { binderTag: binderInput || null } },
-      {
-        onSuccess: () => {
-          setBinderSaved(true);
-          setTimeout(() => setBinderSaved(false), 1500);
-        },
-      },
+      { onSuccess: () => { setBinderSaved(true); setTimeout(() => setBinderSaved(false), 1500); } },
     );
   };
 
-  const price = getMarketPrice(card);
+  const handleFoilSave = (tier: FoilType) => {
+    if (!entry) return;
+    setFoilType(tier);
+    updateCard.mutate(
+      { cardId: card.id, updates: { foilType: tier } },
+      { onSuccess: () => { setFoilSaved(true); setTimeout(() => setFoilSaved(false), 1500); } },
+    );
+  };
 
   return (
     <div
@@ -106,6 +114,23 @@ export function CardLightbox({ card, entry, onClose }: Props) {
                 <div className="flex justify-between">
                   <span className="text-gray-500">Owned</span>
                   <span className="font-semibold text-green-600">{entry.quantity}×</span>
+                </div>
+              )}
+              {entry && availableTiers.length > 0 && (
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500">Card Type</span>
+                  <div className="flex items-center gap-1.5">
+                    <select
+                      value={foilType ?? ''}
+                      onChange={(e) => handleFoilSave(e.target.value as FoilType)}
+                      className="text-xs border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-pokemon-blue bg-white"
+                    >
+                      {availableTiers.map((t) => (
+                        <option key={t} value={t}>{FOIL_LABELS[t]}</option>
+                      ))}
+                    </select>
+                    {foilSaved && <span className="text-xs text-green-500">✓</span>}
+                  </div>
                 </div>
               )}
             </div>

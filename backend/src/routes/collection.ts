@@ -88,18 +88,19 @@ collectionRouter.post('/batch', (req: Request, res: Response) => {
     const id = cid(req);
 
     const stmt = db.prepare(`
-      INSERT INTO collection (card_id, collection_id, quantity, binder_tag)
-      VALUES (@cardId, @collId, @quantity, @binderTag)
+      INSERT INTO collection (card_id, collection_id, quantity, binder_tag, foil_type)
+      VALUES (@cardId, @collId, @quantity, @binderTag, @foilType)
       ON CONFLICT(card_id, collection_id) DO UPDATE SET
         quantity = quantity + @quantity,
         binder_tag = COALESCE(@binderTag, binder_tag),
+        foil_type = COALESCE(@foilType, foil_type),
         updated_at = datetime('now')
     `);
 
     db.exec('BEGIN');
     let results: unknown[];
     try {
-      cards.forEach((c: any) => stmt.run({ cardId: c.cardId, collId: id, quantity: c.quantity || 1, binderTag: c.binderTag || null }));
+      cards.forEach((c: any) => stmt.run({ cardId: c.cardId, collId: id, quantity: c.quantity || 1, binderTag: c.binderTag || null, foilType: c.foilType || null }));
       results = cards.map((c: any) =>
         db.prepare('SELECT * FROM collection WHERE card_id = ? AND collection_id = ?').get(c.cardId, id)
       );
@@ -117,18 +118,19 @@ collectionRouter.post('/batch', (req: Request, res: Response) => {
 
 collectionRouter.post('/', (req: Request, res: Response) => {
   try {
-    const { cardId, quantity = 1, binderTag } = req.body;
+    const { cardId, quantity = 1, binderTag, foilType } = req.body;
     if (!cardId) return res.status(400).json({ error: 'cardId required' });
     const id = cid(req);
 
     db.prepare(`
-      INSERT INTO collection (card_id, collection_id, quantity, binder_tag)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO collection (card_id, collection_id, quantity, binder_tag, foil_type)
+      VALUES (?, ?, ?, ?, ?)
       ON CONFLICT(card_id, collection_id) DO UPDATE SET
         quantity = quantity + ?,
         binder_tag = COALESCE(?, binder_tag),
+        foil_type = COALESCE(?, foil_type),
         updated_at = datetime('now')
-    `).run(cardId, id, quantity, binderTag || null, quantity, binderTag || null);
+    `).run(cardId, id, quantity, binderTag || null, foilType || null, quantity, binderTag || null, foilType || null);
 
     res.json(db.prepare('SELECT * FROM collection WHERE card_id = ? AND collection_id = ?').get(cardId, id));
   } catch {
@@ -139,7 +141,7 @@ collectionRouter.post('/', (req: Request, res: Response) => {
 collectionRouter.put('/:cardId', (req: Request, res: Response) => {
   try {
     const { cardId } = req.params;
-    const { quantity, binderTag } = req.body;
+    const { quantity, binderTag, foilType } = req.body;
     const id = cid(req);
 
     const existing = db.prepare('SELECT * FROM collection WHERE card_id = ? AND collection_id = ?').get(cardId, id);
@@ -154,9 +156,10 @@ collectionRouter.put('/:cardId', (req: Request, res: Response) => {
       UPDATE collection SET
         quantity = COALESCE(?, quantity),
         binder_tag = ?,
+        foil_type = COALESCE(?, foil_type),
         updated_at = datetime('now')
       WHERE card_id = ? AND collection_id = ?
-    `).run(quantity ?? null, binderTag ?? null, cardId, id);
+    `).run(quantity ?? null, binderTag ?? null, foilType ?? null, cardId, id);
 
     res.json(db.prepare('SELECT * FROM collection WHERE card_id = ? AND collection_id = ?').get(cardId, id));
   } catch {

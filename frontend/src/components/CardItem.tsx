@@ -3,6 +3,8 @@ import { Plus, Minus, BookOpen, Check } from 'lucide-react';
 import { TypeBadge } from './TypeBadge';
 import { CardLightbox } from './CardLightbox';
 import { useAddCard, useUpdateCard, useRemoveCard } from '../hooks/useCollection';
+import { getAvailableTiers, getCheapestTier } from '../utils/prices';
+import { FOIL_LABELS, type FoilType } from '../types';
 import type { TCGCard, CollectionEntry } from '../types';
 
 interface Props {
@@ -12,10 +14,14 @@ interface Props {
 }
 
 export function CardItem({ card, collectionEntry, binderTags = [] }: Props) {
+  const availableTiers = getAvailableTiers(card);
+  const defaultTier = getCheapestTier(card);
+
   const [showBinder, setShowBinder] = useState(false);
   const [showLightbox, setShowLightbox] = useState(false);
   const [binderInput, setBinderInput] = useState(collectionEntry?.binder_tag ?? '');
   const [imgError, setImgError] = useState(false);
+  const [selectedTier, setSelectedTier] = useState<FoilType | null>(defaultTier);
 
   const addCard = useAddCard();
   const updateCard = useUpdateCard();
@@ -25,7 +31,7 @@ export function CardItem({ card, collectionEntry, binderTags = [] }: Props) {
   const qty = collectionEntry?.quantity ?? 0;
 
   const handleAdd = () => {
-    addCard.mutate({ cardId: card.id, quantity: 1, binderTag: binderInput || undefined });
+    addCard.mutate({ cardId: card.id, quantity: 1, binderTag: binderInput || undefined, foilType: selectedTier });
   };
 
   const handleIncrement = () => {
@@ -107,6 +113,20 @@ export function CardItem({ card, collectionEntry, binderTags = [] }: Props) {
           <div className="mt-1 flex items-center gap-1">
             <BookOpen size={10} className="text-gray-400" />
             <span className="text-xs text-gray-500 truncate">{collectionEntry.binder_tag}</span>
+          </div>
+        )}
+
+        {!owned && availableTiers.length > 1 && (
+          <div className="mt-1.5">
+            <select
+              value={selectedTier ?? ''}
+              onChange={(e) => setSelectedTier(e.target.value as FoilType)}
+              className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-pokemon-blue bg-white"
+            >
+              {availableTiers.map((t) => (
+                <option key={t} value={t}>{FOIL_LABELS[t]}</option>
+              ))}
+            </select>
           </div>
         )}
 

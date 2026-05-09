@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { initDatabase } from './database';
+import { initScheduler } from './scheduler';
 import { collectionRouter } from './routes/collection';
 import { cardsRouter } from './routes/cards';
 
@@ -11,6 +12,7 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 initDatabase();
+initScheduler();
 
 const allowedOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim())

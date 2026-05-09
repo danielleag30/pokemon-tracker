@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { X, Search, CheckSquare, Square, Loader } from 'lucide-react';
 import { useSets, useSetCards } from '../hooks/useCards';
 import { useCollectionMap, useBatchAddCards, useCollectionStats } from '../hooks/useCollection';
+import { getAvailableTiers, getCheapestTier } from '../utils/prices';
+import { FOIL_LABELS, type FoilType } from '../types';
 import { ProgressBar } from './ProgressBar';
 import type { TCGCard } from '../types';
 
@@ -12,7 +14,7 @@ interface Props {
 export function BatchAddModal({ onClose }: Props) {
   const [selectedSet, setSelectedSet] = useState('');
   const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Map<string, FoilType | null>>(new Map());
   const [binderTag, setBinderTag] = useState('');
 
   const { data: setsData, isLoading: setsLoading } = useSets();
@@ -33,24 +35,39 @@ export function BatchAddModal({ onClose }: Props) {
   const pokemonCards = filtered.filter((c) => c.supertype === 'Pokémon');
   const ownedInSet = allCards.filter((c) => collectionMap.has(c.id)).length;
 
-  const toggle = (id: string) => {
+  const getDefaultTier = (card: TCGCard): FoilType | null => getCheapestTier(card);
+
+  const toggle = (card: TCGCard) => {
     setSelected((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      const next = new Map(prev);
+      next.has(card.id) ? next.delete(card.id) : next.set(card.id, getDefaultTier(card));
       return next;
     });
   };
 
-  const selectAll = () => setSelected(new Set(pokemonCards.map((c) => c.id)));
+  const setTier = (cardId: string, tier: FoilType) => {
+    setSelected((prev) => {
+      const next = new Map(prev);
+      if (next.has(cardId)) next.set(cardId, tier);
+      return next;
+    });
+  };
+
+  const selectAll = () => setSelected(new Map(pokemonCards.map((c) => [c.id, getDefaultTier(c)])));
   const selectMissing = () =>
-    setSelected(new Set(pokemonCards.filter((c) => !collectionMap.has(c.id)).map((c) => c.id)));
-  const clearAll = () => setSelected(new Set());
+    setSelected(new Map(pokemonCards.filter((c) => !collectionMap.has(c.id)).map((c) => [c.id, getDefaultTier(c)])));
+  const clearAll = () => setSelected(new Map());
 
   const handleAdd = async () => {
     if (selected.size === 0) return;
-    const cards = Array.from(selected).map((cardId) => ({ cardId, quantity: 1, binderTag: binderTag || undefined }));
+    const cards = Array.from(selected.entries()).map(([cardId, foilType]) => ({
+      cardId,
+      quantity: 1,
+      binderTag: binderTag || undefined,
+      foilType: foilType ?? undefined,
+    }));
     await batchAdd.mutateAsync(cards);
-    setSelected(new Set());
+    setSelected(new Map());
     onClose();
   };
 
@@ -73,7 +90,7 @@ export function BatchAddModal({ onClose }: Props) {
               ) : (
                 <select
                   value={selectedSet}
-                  onChange={(e) => { setSelectedSet(e.target.value); setSelected(new Set()); }}
+                  onChange={(e) => { setSelectedSet(e.target.value); setSelected(new Map()); }}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pokemon-blue/30"
                 >
                   <option value="">— Choose a set —</option>
@@ -142,11 +159,12 @@ export function BatchAddModal({ onClose }: Props) {
               {filtered.map((card) => {
                 const isOwned = collectionMap.has(card.id);
                 const isSelected = selected.has(card.id);
+                const tiers = getAvailableTiers(card);
+                const currentTier = selected.get(card.id) ?? null;
                 return (
-                  <button
+                  <div
                     key={card.id}
-                    onClick={() => toggle(card.id)}
-                    className={`flex items-center gap-3 p-2.5 rounded-xl text-left transition-all ${
+                    className={`flex items-center gap-3 p-2.5 rounded-xl transition-all ${
                       isSelected
                         ? 'bg-pokemon-blue/10 ring-2 ring-pokemon-blue'
                         : isOwned
@@ -154,26 +172,43 @@ export function BatchAddModal({ onClose }: Props) {
                         : 'bg-gray-50 hover:bg-gray-100'
                     }`}
                   >
-                    {isSelected ? (
-                      <CheckSquare size={16} className="text-pokemon-blue shrink-0" />
-                    ) : (
-                      <Square size={16} className="text-gray-300 shrink-0" />
-                    )}
-                    <img
-                      src={card.images.small}
-                      alt={card.name}
-                      className="w-8 h-11 object-contain rounded shrink-0"
-                    />
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-gray-800 truncate">{card.name}</p>
-                      <p className="text-xs text-gray-500">#{card.number} · {card.rarity ?? '—'}</p>
-                    </div>
-                    {isOwned && (
-                      <span className="ml-auto shrink-0 text-xs bg-green-100 text-green-700 font-semibold px-1.5 py-0.5 rounded-full">
+                    <button
+                      onClick={() => toggle(card)}
+                      className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                    >
+                      {isSelected ? (
+                        <CheckSquare size={16} className="text-pokemon-blue shrink-0" />
+                      ) : (
+                        <Square size={16} className="text-gray-300 shrink-0" />
+                      )}
+                      <img
+                        src={card.images.small}
+                        alt={card.name}
+                        className="w-8 h-11 object-contain rounded shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-800 truncate">{card.name}</p>
+                        <p className="text-xs text-gray-500">#{card.number} · {card.rarity ?? '—'}</p>
+                      </div>
+                    </button>
+                    {isOwned && !isSelected && (
+                      <span className="shrink-0 text-xs bg-green-100 text-green-700 font-semibold px-1.5 py-0.5 rounded-full">
                         ✓ {collectionMap.get(card.id)!.quantity}
                       </span>
                     )}
-                  </button>
+                    {isSelected && tiers.length > 1 && (
+                      <select
+                        value={currentTier ?? ''}
+                        onChange={(e) => setTier(card.id, e.target.value as FoilType)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="shrink-0 text-xs border border-pokemon-blue/30 rounded-lg px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-pokemon-blue max-w-[110px]"
+                      >
+                        {tiers.map((t) => (
+                          <option key={t} value={t}>{FOIL_LABELS[t]}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
                 );
               })}
             </div>

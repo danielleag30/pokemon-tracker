@@ -23,6 +23,7 @@ export function initDatabase(): void {
       collection_id TEXT NOT NULL DEFAULT 'default',
       quantity INTEGER NOT NULL DEFAULT 1,
       binder_tag TEXT,
+      foil_type TEXT,
       added_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       PRIMARY KEY (card_id, collection_id)
@@ -50,13 +51,17 @@ export function initDatabase(): void {
     );
   `);
 
-  // Migrate existing single-collection data: add collection_id column if missing
   const cols = db.prepare("PRAGMA table_info(collection)").all() as any[];
+
   if (!cols.some((c) => c.name === 'collection_id')) {
     db.exec(`
       ALTER TABLE collection ADD COLUMN collection_id TEXT NOT NULL DEFAULT 'default';
       CREATE INDEX IF NOT EXISTS idx_collection_id ON collection(collection_id);
     `);
+  }
+
+  if (!cols.some((c) => c.name === 'foil_type')) {
+    db.exec(`ALTER TABLE collection ADD COLUMN foil_type TEXT;`);
   }
 
   console.log('Database ready:', DB_PATH);

@@ -45,13 +45,13 @@ export const collectionApi = {
   getStats: (): Promise<CollectionStats> =>
     client.get('/api/collection/stats').then((r) => r.data),
 
-  add: (cardId: string, quantity = 1, binderTag?: string): Promise<CollectionEntry> =>
-    client.post('/api/collection', { cardId, quantity, binderTag }).then((r) => r.data),
+  add: (cardId: string, quantity = 1, binderTag?: string, foilType?: string | null): Promise<CollectionEntry> =>
+    client.post('/api/collection', { cardId, quantity, binderTag, foilType }).then((r) => r.data),
 
-  batchAdd: (cards: { cardId: string; quantity?: number; binderTag?: string }[]) =>
+  batchAdd: (cards: { cardId: string; quantity?: number; binderTag?: string; foilType?: string | null }[]) =>
     client.post('/api/collection/batch', { cards }).then((r) => r.data),
 
-  update: (cardId: string, updates: { quantity?: number; binderTag?: string | null }): Promise<CollectionEntry> =>
+  update: (cardId: string, updates: { quantity?: number; binderTag?: string | null; foilType?: string | null }): Promise<CollectionEntry> =>
     client.put(`/api/collection/${encodeURIComponent(cardId)}`, updates).then((r) => r.data),
 
   remove: (cardId: string): Promise<void> =>

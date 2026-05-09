@@ -30,8 +30,8 @@ export function useCollectionMap() {
 export function useAddCard() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ cardId, quantity = 1, binderTag }: { cardId: string; quantity?: number; binderTag?: string }) =>
-      collectionApi.add(cardId, quantity, binderTag),
+    mutationFn: ({ cardId, quantity = 1, binderTag, foilType }: { cardId: string; quantity?: number; binderTag?: string; foilType?: string | null }) =>
+      collectionApi.add(cardId, quantity, binderTag, foilType),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['collection'] });
       qc.invalidateQueries({ queryKey: ['collection-stats'] });
@@ -42,7 +42,7 @@ export function useAddCard() {
 export function useBatchAddCards() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (cards: { cardId: string; quantity?: number; binderTag?: string }[]) =>
+    mutationFn: (cards: { cardId: string; quantity?: number; binderTag?: string; foilType?: string | null }[]) =>
       collectionApi.batchAdd(cards),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['collection'] });
@@ -54,7 +54,7 @@ export function useBatchAddCards() {
 export function useUpdateCard() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ cardId, updates }: { cardId: string; updates: { quantity?: number; binderTag?: string | null } }) =>
+    mutationFn: ({ cardId, updates }: { cardId: string; updates: { quantity?: number; binderTag?: string | null; foilType?: string | null } }) =>
       collectionApi.update(cardId, updates),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['collection'] });
@@ -110,7 +110,7 @@ export function useCollectionValue() {
     collection.forEach((entry) => {
       const card = cardDataMap.get(entry.card_id);
       if (!card) return;
-      const price = getMarketPrice(card);
+      const price = getMarketPrice(card, entry.foil_type);
       if (price != null) {
         total += price * entry.quantity;
         valued.push({ card, entry, price });
