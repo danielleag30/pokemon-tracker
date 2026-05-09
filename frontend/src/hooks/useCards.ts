@@ -28,6 +28,15 @@ export function useCardSearch(query: string, enabled = true) {
   });
 }
 
+export function useBatchSearch(query: string, enabled = true) {
+  return useQuery<{ data: TCGCard[]; totalCount: number }>({
+    queryKey: ['batch-search', query],
+    queryFn: () => cardsApi.search(query, 1, 100),
+    enabled: enabled && query.length >= 2,
+    staleTime: 5 * 60_000,
+  });
+}
+
 export function usePokemonCards(name: string, enabled = true) {
   return useQuery<{ data: TCGCard[] }>({
     queryKey: ['pokemon-cards', name],
