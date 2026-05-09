@@ -6,6 +6,7 @@ import { cardsApi } from '../utils/api';
 import { getMarketPrice, formatPrice } from '../utils/prices';
 import { CardLightbox } from '../components/CardLightbox';
 import { REGIONS, SERIES_TO_REGION, STARTER_LINES, TYPE_DISPLAY_NAMES } from '../utils/constants';
+import { FOIL_LABELS, FOIL_PRIORITY, type FoilType } from '../types';
 import type { TCGCard, CollectionEntry } from '../types';
 
 type GroupBy = 'set' | 'region' | 'starter' | 'type' | 'evolution' | 'value';
@@ -31,6 +32,7 @@ const EVOLUTION_ORDER = [
 export function MyCards() {
   const [groupBy, setGroupBy] = useState<GroupBy>('set');
   const [selectedBinder, setSelectedBinder] = useState<string | null>(null);
+  const [selectedFoil, setSelectedFoil] = useState<FoilType | null>(null);
   const [search, setSearch] = useState('');
   const [lightbox, setLightbox] = useState<OwnedCard | null>(null);
   const [selectMode, setSelectMode] = useState(false);
@@ -75,14 +77,21 @@ export function MyCards() {
       .filter((item): item is OwnedCard => item.card !== undefined);
   }, [collection, cardDataMap]);
 
-  // Apply binder + search filters
+  // Which foil tiers are actually used in the collection (null → 'normal')
+  const usedFoilTiers = useMemo(() => {
+    const tiers = new Set(allOwnedCards.map(({ entry }) => entry.foil_type ?? 'normal'));
+    return FOIL_PRIORITY.filter((t) => tiers.has(t));
+  }, [allOwnedCards]);
+
+  // Apply binder + foil + search filters
   const filteredCards = useMemo(() => {
     return allOwnedCards.filter(({ entry, card }) => {
       if (selectedBinder !== null && entry.binder_tag !== selectedBinder) return false;
+      if (selectedFoil !== null && (entry.foil_type ?? 'normal') !== selectedFoil) return false;
       if (search && !card.name.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     });
-  }, [allOwnedCards, selectedBinder, search]);
+  }, [allOwnedCards, selectedBinder, selectedFoil, search]);
 
   // Group and sort cards by the chosen grouping
   const groups = useMemo((): Group[] => {
@@ -217,12 +226,6 @@ export function MyCards() {
     exitSelectMode();
   };
 
-  const handleDeleteOne = (e: React.MouseEvent, cardId: string) => {
-    e.stopPropagation();
-    if (!confirm('Remove this card from your collection?')) return;
-    removeCard.mutate(cardId);
-  };
-
   const GROUP_OPTIONS: { value: GroupBy; label: string }[] = [
     { value: 'set',       label: 'By Set'       },
     { value: 'region',    label: 'By Region'    },
@@ -325,6 +328,38 @@ export function MyCards() {
           </div>
         )}
 
+        {/* Foil tier filter */}
+        {usedFoilTiers.length > 1 && (
+          <div>
+            <p className="text-xs font-semibold text-gray-500 mb-2">Card Type</p>
+            <div className="flex gap-1.5 flex-wrap">
+              <button
+                onClick={() => setSelectedFoil(null)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                  selectedFoil === null
+                    ? 'bg-yellow-500 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                All
+              </button>
+              {usedFoilTiers.map((tier) => (
+                <button
+                  key={tier}
+                  onClick={() => setSelectedFoil(selectedFoil === tier ? null : tier)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                    selectedFoil === tier
+                      ? 'bg-yellow-500 text-white'
+                      : 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
+                  }`}
+                >
+                  ✨ {FOIL_LABELS[tier]}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Search */}
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -405,16 +440,6 @@ export function MyCards() {
                           ? <CheckSquare size={16} className="text-red-500 drop-shadow" />
                           : <Square size={16} className="text-white drop-shadow" />}
                       </div>
-                    )}
-                    {/* Per-card delete button (normal mode) */}
-                    {!selectMode && (
-                      <button
-                        onClick={(e) => handleDeleteOne(e, entry.card_id)}
-                        className="absolute top-0.5 left-0.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover/card:opacity-100 transition-opacity shadow hover:bg-red-600"
-                        title="Remove from collection"
-                      >
-                        <X size={10} />
-                      </button>
                     )}
                     {/* Quantity badge */}
                     {entry.quantity > 1 && !selectMode && (

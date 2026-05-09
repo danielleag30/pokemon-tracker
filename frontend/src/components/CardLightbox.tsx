@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { X, BookOpen } from 'lucide-react';
+import { X, BookOpen, Trash2 } from 'lucide-react';
 import { TypeBadge } from './TypeBadge';
 import { getMarketPrice, formatPrice, getAvailableTiers } from '../utils/prices';
-import { useUpdateCard, useCollectionStats } from '../hooks/useCollection';
+import { useUpdateCard, useRemoveCard, useCollectionStats } from '../hooks/useCollection';
 import { FOIL_LABELS, type FoilType } from '../types';
 import type { TCGCard, CollectionEntry } from '../types';
 
@@ -18,6 +18,7 @@ export function CardLightbox({ card, entry, onClose }: Props) {
   const [foilSaved, setFoilSaved] = useState(false);
 
   const updateCard = useUpdateCard();
+  const removeCard = useRemoveCard();
   const { data: stats } = useCollectionStats();
   const binderTags = stats?.binders.map((b) => b.binder_tag) ?? [];
 
@@ -178,6 +179,21 @@ export function CardLightbox({ card, entry, onClose }: Props) {
           <p className="px-4 pb-4 text-xs text-gray-400 italic border-t pt-3 mx-4">
             "{card.flavorText}"
           </p>
+        )}
+
+        {entry && (
+          <div className="px-4 pb-4">
+            <button
+              onClick={() => {
+                if (!confirm('Remove this card from your collection?')) return;
+                removeCard.mutate(card.id, { onSuccess: onClose });
+              }}
+              disabled={removeCard.isPending}
+              className="w-full flex items-center justify-center gap-2 text-sm text-red-500 border border-red-200 hover:bg-red-50 py-2 rounded-xl transition-colors disabled:opacity-50"
+            >
+              <Trash2 size={14} /> Remove from Collection
+            </button>
+          </div>
         )}
       </div>
     </div>
