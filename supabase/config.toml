@@ -1,0 +1,17 @@
+[project]
+id = "wmwpjkfgapqyyjsjuhos"
+
+[functions.collection]
+verify_jwt = false
+
+[functions.cards]
+verify_jwt = false
+
+[functions.chat]
+verify_jwt = false
+
+[functions.ingest-cards]
+verify_jwt = false
+
+[functions.ingest-check]
+verify_jwt = false

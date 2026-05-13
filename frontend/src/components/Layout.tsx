@@ -1,7 +1,18 @@
+import { useLocation } from 'react-router-dom';
 import { Outlet } from 'react-router-dom';
 import { NavBar } from './NavBar';
+import { ChatModal } from './ChatModal';
 
 export function Layout() {
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+
+  const pageContext = {
+    page: location.pathname,
+    setId: params.get('set') ?? undefined,
+    regionId: params.get('region') ?? undefined,
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <NavBar />
@@ -10,6 +21,7 @@ export function Layout() {
           <Outlet />
         </div>
       </main>
+      <ChatModal pageContext={pageContext} />
     </div>
   );
 }
