@@ -27,7 +27,7 @@ Multi-user Pokémon card collection tracker with AI chat assistant.
 | Secret | Value |
 |---|---|
 | `POKEMON_TCG_API_KEY` | your TCG API key |
-| `OLLAMA_CLOUD_URL` | `https://api.ollama.com/v1` |
+| `OLLAMA_CLOUD_URL` | `https://ollama.com/v1` |
 | `OLLAMA_CLOUD_TOKEN` | your Ollama Cloud bearer token |
 | `OLLAMA_CLOUD_MODEL` | `gemma4:31b-cloud` |
 

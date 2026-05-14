@@ -21,7 +21,7 @@ async function embed(text: string): Promise<number[]> {
   // @ts-ignore — Supabase AI session available in edge runtime
   const session = new Supabase.ai.Session('gte-small');
   const result = await session.run(text, { mean_pool: true, normalize: true });
-  return Array.from(result.data);
+  return Array.from(result as ArrayLike<number>);
 }
 
 Deno.serve(async (req) => {

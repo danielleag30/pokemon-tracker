@@ -8,7 +8,7 @@
 import { corsResponse, json, err } from '../_shared/cors.ts';
 import { makeClient, tcgFetch } from '../_shared/supabase.ts';
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 10;
 
 interface TCGCard {
   id: string;
@@ -27,10 +27,13 @@ interface TCGCard {
 async function embedBatch(texts: string[]): Promise<number[][]> {
   // @ts-ignore
   const session = new Supabase.ai.Session('gte-small');
-  const results = await Promise.all(
-    texts.map(t => session.run(t, { mean_pool: true, normalize: true }))
-  );
-  return results.map((r: { data: ArrayLike<number> }) => Array.from(r.data));
+  const results: number[][] = [];
+  for (const text of texts) {
+    const r = await session.run(text, { mean_pool: true, normalize: true });
+    // session.run returns a Float32Array directly, not { data: ... }
+    results.push(Array.from(r as ArrayLike<number>));
+  }
+  return results;
 }
 
 function cardToText(card: TCGCard): string {
