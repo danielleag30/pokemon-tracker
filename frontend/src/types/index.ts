@@ -125,3 +125,17 @@ export interface TypeColorEntry {
   text: string;
   light: string;
 }
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  cardIds?: string[];
+  imagePreview?: string;
+}
+
+export interface ChatPageContext {
+  page?: string;
+  setId?: string;
+  regionId?: string;
+  visibleCardIds?: string[];
+}
