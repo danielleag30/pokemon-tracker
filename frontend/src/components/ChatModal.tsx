@@ -3,6 +3,9 @@ import { MessageCircle, X, Send, Mic, MicOff, Camera, Loader2 } from 'lucide-rea
 import { chatApi, cardsApi } from '../utils/api';
 import type { ChatMessage, ChatPageContext, TCGCard } from '../types';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnySpeechRecognition = any;
+
 interface Props {
   pageContext?: ChatPageContext;
 }
@@ -18,7 +21,7 @@ export function ChatModal({ pageContext }: Props) {
 
   const bottomRef   = useRef<HTMLDivElement>(null);
   const inputRef    = useRef<HTMLTextAreaElement>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<AnySpeechRecognition>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -80,12 +83,13 @@ export function ChatModal({ pageContext }: Props) {
       setListening(false);
       return;
     }
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) return;
     const recognition = new SpeechRecognition();
     recognition.continuous = false;
     recognition.interimResults = false;
-    recognition.onresult = (e) => {
+    recognition.onresult = (e: AnySpeechRecognition) => {
       const transcript = e.results[0][0].transcript;
       setInput(prev => prev ? `${prev} ${transcript}` : transcript);
     };
