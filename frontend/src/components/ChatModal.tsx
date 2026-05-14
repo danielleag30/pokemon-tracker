@@ -100,8 +100,9 @@ export function ChatModal({ pageContext }: Props) {
   };
 
   const capturePhoto = async () => {
+    let stream: MediaStream | null = null;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
       const video = document.createElement('video');
       video.srcObject = stream;
       await video.play();
@@ -109,12 +110,13 @@ export function ChatModal({ pageContext }: Props) {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       canvas.getContext('2d')!.drawImage(video, 0, 0);
-      stream.getTracks().forEach(t => t.stop());
       const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
       setImagePreview(base64);
       inputRef.current?.focus();
     } catch {
       // Camera denied or unavailable
+    } finally {
+      stream?.getTracks().forEach(t => t.stop());
     }
   };
 

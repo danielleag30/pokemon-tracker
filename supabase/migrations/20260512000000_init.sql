@@ -63,12 +63,19 @@ create table if not exists public.ingest_queue (
   updated_at       timestamptz not null default now()
 );
 
-alter table public.collection      disable row level security;
-alter table public.card_cache      disable row level security;
-alter table public.set_cards_cache disable row level security;
-alter table public.sets_cache      disable row level security;
-alter table public.cards_vectors   disable row level security;
-alter table public.ingest_queue    disable row level security;
+alter table public.collection      enable row level security;
+alter table public.card_cache      enable row level security;
+alter table public.set_cards_cache enable row level security;
+alter table public.sets_cache      enable row level security;
+alter table public.cards_vectors   enable row level security;
+alter table public.ingest_queue    enable row level security;
+
+-- Cache tables hold public TCG card data; allow anonymous reads.
+-- collection and ingest_queue are only accessed via service-role edge functions.
+create policy "Allow public read" on public.card_cache      for select using (true);
+create policy "Allow public read" on public.set_cards_cache for select using (true);
+create policy "Allow public read" on public.sets_cache      for select using (true);
+create policy "Allow public read" on public.cards_vectors   for select using (true);
 
 create or replace function public.match_cards(
   query_embedding extensions.vector(384),
