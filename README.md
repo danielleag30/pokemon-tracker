@@ -100,7 +100,7 @@ supabase functions serve
 
 ```bash
 supabase login
-supabase link --project-ref wmwpjkfgapqyyjsjuhos
+supabase link --project-ref <your-project-ref>
 
 supabase functions deploy collection   --no-verify-jwt
 supabase functions deploy cards        --no-verify-jwt
