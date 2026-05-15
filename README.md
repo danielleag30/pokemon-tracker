@@ -2,7 +2,7 @@
 
 Multi-user Pokémon TCG collection tracker with an AI chat assistant. Browse your cards by region, type, evolution stage, and more — all synced across devices with a shareable collection code.
 
-**Live:** [Vercel](https://vercel.com) → `VITE_API_URL=https://wmwpjkfgapqyyjsjuhos.supabase.co`
+**Live:** [Vercel](https://vercel.com) → `VITE_API_URL=https://<your-project-ref>.supabase.co`
 
 ---
 
@@ -55,6 +55,8 @@ pokemon-tracker/
 │   │       └── api.ts            # Axios client → Supabase edge functions
 │   └── vercel.json
 ├── scripts/
+│   ├── package.json              # Dependencies for migration script
+│   ├── tsconfig.json             # TypeScript config for migration script
 │   └── migrate-collection.ts     # One-time JSON → Supabase import
 └── .github/workflows/
     ├── supabase-deploy.yml        # Auto-deploy edge functions on push to main
@@ -82,7 +84,7 @@ npm run dev
 `.env` values:
 
 ```env
-VITE_API_URL=https://wmwpjkfgapqyyjsjuhos.supabase.co
+VITE_API_URL=https://<your-project-ref>.supabase.co
 ```
 
 ### Edge Functions (local)
@@ -113,7 +115,7 @@ After the first manual deploy, GitHub Actions auto-deploys on every push to `mai
 
 ### Required Edge Function Secrets
 
-Set via [Supabase Dashboard → Edge Functions → Secrets](https://supabase.com/dashboard/project/wmwpjkfgapqyyjsjuhos/settings/edge-functions):
+Set via [Supabase Dashboard → Edge Functions → Secrets](https://supabase.com/dashboard/project/<your-project-ref>/settings/edge-functions):
 
 | Secret | Description |
 |---|---|
@@ -141,14 +143,14 @@ Set via [Supabase Dashboard → Edge Functions → Secrets](https://supabase.com
 cd scripts
 npm install
 SUPABASE_SERVICE_KEY=<your-service-role-key> \
-  npx ts-node --project tsconfig.json --transpile-only \
+  npx ts-node --transpile-only \
   migrate-collection.ts ~/Downloads/your-export.json
 ```
 
 ### Trigger initial card ingestion (~13k cards → pgvector)
 
 ```bash
-curl -X POST https://wmwpjkfgapqyyjsjuhos.supabase.co/functions/v1/ingest-cards \
+curl -X POST https://<your-project-ref>.supabase.co/functions/v1/ingest-cards \
   -H "Content-Type: application/json" \
   -d '{"page": 1}'
 ```
