@@ -7,7 +7,9 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return corsResponse();
 
   const url = new URL(req.url);
-  const path = url.pathname.replace(/^\/functions\/v1\/cards\/?/, '') || '';
+  const path = url.pathname
+    .replace(/^\/(?:functions\/v1\/)?cards\/?/, '')
+    .replace(/^\//, '');
   const supabase = makeClient();
 
   try {

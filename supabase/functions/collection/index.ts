@@ -10,7 +10,9 @@ Deno.serve(async (req) => {
 
   const url = new URL(req.url);
   // Strip /functions/v1/collection prefix to get the sub-path
-  const path = url.pathname.replace(/^\/functions\/v1\/collection\/?/, '') || '';
+  const path = url.pathname
+    .replace(/^\/(?:functions\/v1\/)?collection\/?/, '')
+    .replace(/^\//, '');
   const supabase = makeClient();
 
   try {
