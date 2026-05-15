@@ -72,17 +72,25 @@ Deno.serve(async (req) => {
       }));
 
       if (merge) {
-        for (const row of rows) {
-          const { data: existing } = await supabase
-            .from('collection').select('quantity').eq('card_id', row.card_id).eq('collection_id', id).single();
-          if (existing) {
-            await supabase.from('collection')
-              .update({ quantity: existing.quantity + row.quantity, updated_at: new Date().toISOString() })
-              .eq('card_id', row.card_id).eq('collection_id', id);
-          } else {
-            await supabase.from('collection').insert(row);
-          }
-        }
+        const { data: existing } = await supabase
+          .from('collection')
+          .select('card_id, quantity')
+          .eq('collection_id', id)
+          .in('card_id', rows.map(r => r.card_id));
+
+        const existingMap = new Map(
+          (existing ?? []).map((e: { card_id: string; quantity: number }) => [e.card_id, e.quantity])
+        );
+
+        const mergedRows = rows.map(row => ({
+          ...row,
+          quantity: (existingMap.get(row.card_id) ?? 0) + row.quantity,
+          updated_at: new Date().toISOString(),
+        }));
+
+        const { error } = await supabase.from('collection')
+          .upsert(mergedRows, { onConflict: 'card_id,collection_id' });
+        if (error) return err(error.message);
       } else {
         const { error } = await supabase.from('collection')
           .upsert(rows, { onConflict: 'card_id,collection_id' });

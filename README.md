@@ -145,6 +145,10 @@ npm install
 SUPABASE_SERVICE_KEY=<your-service-role-key> \
   npx ts-node --transpile-only \
   migrate-collection.ts ~/Downloads/your-export.json
+cd backend && npm install
+SUPABASE_SERVICE_KEY=your_service_role_key_here \
+  npx ts-node ../scripts/migrate-collection.ts \
+  ~/Downloads/pokemon-collection-2026-05-12.json
 ```
 
 ### Trigger initial card ingestion (~13k cards → pgvector)
