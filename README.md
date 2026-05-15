@@ -59,7 +59,7 @@ After the first deploy, GitHub Actions auto-deploys on every push to `main`.
 
 ```bash
 cd backend && npm install
-SUPABASE_SERVICE_KEY=sb_secret_Tzv32N_uyEgwl14VOOw_tA_FjQj8kD3 \
+SUPABASE_SERVICE_KEY=your_service_role_key_here \
   npx ts-node ../scripts/migrate-collection.ts \
   ~/Downloads/pokemon-collection-2026-05-12.json
 ```
