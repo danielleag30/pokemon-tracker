@@ -1,10 +1,32 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+// Service role client — bypasses RLS. Use for admin operations only (never in browser).
 export function makeClient() {
   return createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     { auth: { persistSession: false } }
+  );
+}
+
+// Anon key client — used for signInWithPassword so a real user session JWT is returned.
+export function makeAnonClient() {
+  return createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_ANON_KEY')!,
+    { auth: { persistSession: false } }
+  );
+}
+
+// User-scoped client — forwards the request's Bearer token so RLS policies apply.
+export function makeUserClient(authHeader: string) {
+  return createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_ANON_KEY')!,
+    {
+      auth: { persistSession: false },
+      global: { headers: { Authorization: authHeader } },
+    }
   );
 }
 

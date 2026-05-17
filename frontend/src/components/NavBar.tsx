@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Map, Library, Star, Palette, GitBranch,
-  AlertCircle, Copy, Menu, X, Plus, Search, BookOpen
+  AlertCircle, Copy, Menu, X, Plus, Search, BookOpen, LogOut
 } from 'lucide-react';
 import { BatchAddModal } from './BatchAddModal';
 import { SearchAddModal } from './SearchAddModal';
-import { CollectionCode } from './CollectionCode';
+import { useAuth } from '../contexts/AuthContext';
 
 const links = [
   { to: '/',          label: 'Dashboard',     icon: LayoutDashboard },
@@ -21,9 +21,16 @@ const links = [
 ];
 
 export function NavBar() {
+  const { profile, logout } = useAuth();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [showBatch, setShowBatch] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+
+  async function handleLogout() {
+    await logout();
+    navigate('/login', { replace: true });
+  }
 
   return (
     <>
@@ -104,7 +111,22 @@ export function NavBar() {
           </button>
         </div>
 
-        <CollectionCode />
+        {/* User section — replaces CollectionCode */}
+        <div className="px-4 py-3 border-t border-white/10 flex items-center justify-between">
+          <div className="min-w-0">
+            <p className="text-white/40 text-xs uppercase tracking-wide font-semibold">Signed in as</p>
+            <p className="text-white font-bold text-sm truncate mt-0.5">
+              {profile?.username ?? '…'}
+            </p>
+          </div>
+          <button
+            onClick={handleLogout}
+            title="Sign out"
+            className="text-white/50 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-colors flex-shrink-0"
+          >
+            <LogOut size={16} />
+          </button>
+        </div>
       </aside>
 
       {showBatch && <BatchAddModal onClose={() => setShowBatch(false)} />}

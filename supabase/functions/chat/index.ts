@@ -1,5 +1,5 @@
 import { corsResponse, json, err } from '../_shared/cors.ts';
-import { makeClient } from '../_shared/supabase.ts';
+import { makeUserClient } from '../_shared/supabase.ts';
 
 const OLLAMA_URL   = () => Deno.env.get('OLLAMA_CLOUD_URL') ?? 'https://api.ollama.com/v1';
 const OLLAMA_TOKEN = () => Deno.env.get('OLLAMA_CLOUD_TOKEN') ?? '';
@@ -8,7 +8,6 @@ const MATCH_COUNT  = 8;
 
 interface ChatRequest {
   message: string;
-  collectionId: string;
   pageContext?: {
     page?: string;
     setId?: string;
@@ -28,29 +27,33 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return corsResponse();
   if (req.method !== 'POST') return err('Method not allowed', 405);
 
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) return err('Unauthorized', 401);
+
   try {
+    const userClient = makeUserClient(authHeader);
+    const { data: { user }, error: authError } = await userClient.auth.getUser();
+    if (authError || !user) return err('Unauthorized', 401);
+
     const body: ChatRequest = await req.json();
-    const { message, collectionId, pageContext } = body;
+    const { message, pageContext } = body;
 
     if (!message?.trim()) return err('message is required', 400);
-    if (!collectionId?.trim()) return err('collectionId is required', 400);
-
-    const supabase = makeClient();
 
     // Embed the query
     const queryEmbedding = await embed(message);
 
     // Vector search for relevant cards
-    const { data: matchedCards } = await supabase.rpc('match_cards', {
+    const { data: matchedCards } = await userClient.rpc('match_cards', {
       query_embedding: queryEmbedding,
       match_count: MATCH_COUNT,
     });
 
     // Get what the user owns
-    const { data: owned } = await supabase
+    const { data: owned } = await userClient
       .from('collection')
       .select('card_id, quantity, foil_type')
-      .eq('collection_id', collectionId.trim().toUpperCase());
+      .eq('user_id', user.id);
 
     const ownedMap = new Map(
       (owned ?? []).map((r: { card_id: string; quantity: number; foil_type: string | null }) =>
@@ -58,7 +61,7 @@ Deno.serve(async (req) => {
       )
     );
 
-    // Build context for the prompt
+    // Build context for the prompt — no user identity sent to Ollama (COPPA)
     const cardContext = (matchedCards ?? [])
       .map((c: { card_id: string; name: string; set_name: string; types: string[]; rarity: string; hp: string; evolves_from: string }) => {
         const owned = ownedMap.get(c.card_id);
@@ -69,7 +72,7 @@ Deno.serve(async (req) => {
       })
       .join('\n');
 
-    const collectionSummary = `The user's collection ID is "${collectionId}". They own ${ownedMap.size} unique cards.`;
+    const collectionSummary = `The user owns ${ownedMap.size} unique cards.`;
 
     const pageCtx = pageContext
       ? `Current page: ${pageContext.page ?? 'unknown'}${pageContext.setId ? `, viewing set: ${pageContext.setId}` : ''}${pageContext.regionId ? `, region: ${pageContext.regionId}` : ''}.`

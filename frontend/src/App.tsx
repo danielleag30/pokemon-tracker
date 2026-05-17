@@ -1,6 +1,13 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AuthProvider } from './contexts/AuthContext';
+import { ProtectedRoute } from './components/ProtectedRoute';
 import { Layout } from './components/Layout';
+import { Login } from './pages/Login';
+import { Register } from './pages/Register';
+import { ForgotPin } from './pages/ForgotPin';
+import { ResetPin } from './pages/ResetPin';
+import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { Dashboard } from './pages/Dashboard';
 import { ByRegion } from './pages/ByRegion';
 import { ByStarter } from './pages/ByStarter';
@@ -25,20 +32,36 @@ export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Routes>
-          <Route element={<Layout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="region" element={<ByRegion />} />
-            <Route path="region/:regionId" element={<ByRegion />} />
-            <Route path="starters" element={<ByStarter />} />
-            <Route path="type" element={<ByType />} />
-            <Route path="evolution" element={<ByEvolutionStage />} />
-            <Route path="sets" element={<BySet />} />
-            <Route path="my-cards" element={<MyCards />} />
-            <Route path="missing" element={<MissingCards />} />
-            <Route path="duplicates" element={<Duplicates />} />
-          </Route>
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            {/* Public auth routes */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/forgot-pin" element={<ForgotPin />} />
+            <Route path="/reset-pin" element={<ResetPin />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+
+            {/* Protected app routes */}
+            <Route
+              element={
+                <ProtectedRoute>
+                  <Layout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<Dashboard />} />
+              <Route path="region" element={<ByRegion />} />
+              <Route path="region/:regionId" element={<ByRegion />} />
+              <Route path="starters" element={<ByStarter />} />
+              <Route path="type" element={<ByType />} />
+              <Route path="evolution" element={<ByEvolutionStage />} />
+              <Route path="sets" element={<BySet />} />
+              <Route path="my-cards" element={<MyCards />} />
+              <Route path="missing" element={<MissingCards />} />
+              <Route path="duplicates" element={<Duplicates />} />
+            </Route>
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>
   );
