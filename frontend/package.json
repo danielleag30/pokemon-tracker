@@ -9,6 +9,7 @@
     "lint": "eslint src --ext ts,tsx"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.43.0",
     "@tanstack/react-query": "^5.28.4",
     "axios": "^1.6.8",
     "lucide-react": "^0.358.0",

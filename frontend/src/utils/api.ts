@@ -1,36 +1,24 @@
 import axios from 'axios';
 import type { CollectionEntry, CollectionStats } from '../types';
+import { supabase } from '../lib/supabase';
 
 const BASE = import.meta.env.VITE_API_URL || '';
 const FUNCTIONS = `${BASE}/functions/v1`;
 
-// ── Collection ID ──────────────────────────────────────────────────────────
-const ID_KEY = 'poketracker-collection-id';
-
-function generateId(): string {
-  return Math.random().toString(36).slice(2, 6).toUpperCase() +
-         Math.floor(1000 + Math.random() * 9000);
-}
-
-export function getCollectionId(): string {
-  let id = localStorage.getItem(ID_KEY);
-  if (!id) {
-    id = generateId();
-    localStorage.setItem(ID_KEY, id);
-  }
-  return id;
-}
-
-export function setCollectionId(id: string): void {
-  localStorage.setItem(ID_KEY, id.trim().toUpperCase());
-}
-
-// ── Axios client — injects ?c=<id> on every collection request ─────────────
+// ── Axios client — injects Authorization: Bearer on every collection/chat request ──
 const client = axios.create({ baseURL: BASE });
 
-client.interceptors.request.use((config) => {
-  if (config.url?.includes('/functions/v1/collection')) {
-    config.params = { ...config.params, c: getCollectionId() };
+client.interceptors.request.use(async (config) => {
+  const needsAuth =
+    config.url?.includes('/functions/v1/collection') ||
+    config.url?.includes('/functions/v1/chat');
+
+  if (needsAuth) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      config.headers = config.headers ?? {};
+      config.headers['Authorization'] = `Bearer ${session.access_token}`;
+    }
   }
   return config;
 });
@@ -86,7 +74,6 @@ export const chatApi = {
   ): Promise<{ reply: string; cardIds: string[] }> =>
     client.post(`${FUNCTIONS}/chat`, {
       message,
-      collectionId: getCollectionId(),
       pageContext,
     }).then((r) => r.data),
 };

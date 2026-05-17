@@ -1,11 +1,14 @@
-[functions.collection]
+[functions.auth]
 verify_jwt = false
+
+[functions.collection]
+verify_jwt = true
 
 [functions.cards]
 verify_jwt = false
 
 [functions.chat]
-verify_jwt = false
+verify_jwt = true
 
 [functions.ingest-cards]
 verify_jwt = false
