@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Delete, User, Users, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { API } from '../lib/supabase';
 
 const PIN_LENGTH = 6;
-const API = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1';
 
 const NUMPAD = [
   ['1', '2', '3'],
@@ -23,7 +23,7 @@ export function Register() {
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [pinStep, setPinStep] = useState<'enter' | 'confirm'>('enter');
-  const [showPin, setShowPin] = useState(true);
+  const [showPin, setShowPin] = useState(false);
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -38,7 +38,8 @@ export function Register() {
   async function checkUsername(value: string) {
     if (value.length < 3) { setUsernameStatus('idle'); return; }
     setUsernameStatus('checking');
-    const res = await fetch(`${API}/auth/check?username=${encodeURIComponent(value)}`, { method: 'GET' });
+    const res = await fetch(`${API}/auth/check?username=${encodeURIComponent(value)}`);
+    if (!res.ok) { setUsernameStatus('idle'); return; }
     const body = await res.json();
     setUsernameStatus(body.available ? 'available' : 'taken');
   }

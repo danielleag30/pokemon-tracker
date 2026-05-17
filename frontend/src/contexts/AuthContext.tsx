@@ -1,8 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
-
-const API = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1';
+import { supabase, API } from '../lib/supabase';
 
 interface Profile {
   username: string;
