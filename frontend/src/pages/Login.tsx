@@ -18,7 +18,7 @@ export function Login() {
 
   const [username, setUsername] = useState('');
   const [pin, setPin] = useState('');
-  const [showPin, setShowPin] = useState(true);
+  const [showPin, setShowPin] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
