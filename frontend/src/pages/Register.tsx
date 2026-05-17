@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Delete, User, Users } from 'lucide-react';
+import { Delete, User, Users, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const PIN_LENGTH = 6;
-const API = (import.meta.env.VITE_API_URL || '') + '/functions/v1';
+const API = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1';
 
 const NUMPAD = [
   ['1', '2', '3'],
@@ -23,6 +23,7 @@ export function Register() {
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [pinStep, setPinStep] = useState<'enter' | 'confirm'>('enter');
+  const [showPin, setShowPin] = useState(true);
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -37,7 +38,7 @@ export function Register() {
   async function checkUsername(value: string) {
     if (value.length < 3) { setUsernameStatus('idle'); return; }
     setUsernameStatus('checking');
-    const res = await fetch(`${API}/auth/check?username=${encodeURIComponent(value)}`);
+    const res = await fetch(`${API}/auth/check?username=${encodeURIComponent(value)}`, { method: 'GET' });
     const body = await res.json();
     setUsernameStatus(body.available ? 'available' : 'taken');
   }
@@ -173,9 +174,19 @@ export function Register() {
 
           {/* PIN entry */}
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-              {pinStep === 'enter' ? 'Choose a 6-digit PIN' : 'Confirm your PIN'}
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                {pinStep === 'enter' ? 'Choose a 6-digit PIN' : 'Confirm your PIN'}
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowPin((v) => !v)}
+                className="flex items-center gap-1 text-xs text-gray-400 hover:text-[#378ADD] transition-colors"
+              >
+                {showPin ? <EyeOff size={14} /> : <Eye size={14} />}
+                {showPin ? 'Hide' : 'Show'}
+              </button>
+            </div>
             <div className="flex gap-2 justify-center mb-3">
               {Array.from({ length: PIN_LENGTH }).map((_, i) => (
                 <div
@@ -187,7 +198,9 @@ export function Register() {
                   }`}
                 >
                   {i < currentPin.length && (
-                    <div className="w-2.5 h-2.5 rounded-full bg-[#378ADD]" />
+                    showPin
+                      ? <span className="text-[#378ADD] font-bold text-base">{currentPin[i]}</span>
+                      : <div className="w-2.5 h-2.5 rounded-full bg-[#378ADD]" />
                   )}
                 </div>
               ))}

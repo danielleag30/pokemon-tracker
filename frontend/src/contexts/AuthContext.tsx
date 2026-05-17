@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
-const API = (import.meta.env.VITE_API_URL || '') + '/functions/v1';
+const API = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1';
 
 interface Profile {
   username: string;

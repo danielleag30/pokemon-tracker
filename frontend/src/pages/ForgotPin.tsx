@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
-const API = (import.meta.env.VITE_API_URL || '') + '/functions/v1';
+const API = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1';
 
 export function ForgotPin() {
   const [username, setUsername] = useState('');
