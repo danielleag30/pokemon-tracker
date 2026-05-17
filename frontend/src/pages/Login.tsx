@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Delete } from 'lucide-react';
+import { Delete, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const PIN_LENGTH = 6;
@@ -18,6 +18,7 @@ export function Login() {
 
   const [username, setUsername] = useState('');
   const [pin, setPin] = useState('');
+  const [showPin, setShowPin] = useState(true);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -91,11 +92,21 @@ export function Login() {
             />
           </div>
 
-          {/* PIN display — 6 dot boxes */}
+          {/* PIN display */}
           <div className="mb-5">
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-              PIN
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                PIN
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowPin((v) => !v)}
+                className="flex items-center gap-1 text-xs text-gray-400 hover:text-[#378ADD] transition-colors"
+              >
+                {showPin ? <EyeOff size={14} /> : <Eye size={14} />}
+                {showPin ? 'Hide' : 'Show'}
+              </button>
+            </div>
             <div className="flex gap-2 justify-center">
               {Array.from({ length: PIN_LENGTH }).map((_, i) => (
                 <div
@@ -107,7 +118,9 @@ export function Login() {
                   }`}
                 >
                   {i < pin.length && (
-                    <div className="w-3 h-3 rounded-full bg-[#378ADD]" />
+                    showPin
+                      ? <span className="text-[#378ADD] font-bold text-lg">{pin[i]}</span>
+                      : <div className="w-3 h-3 rounded-full bg-[#378ADD]" />
                   )}
                 </div>
               ))}
