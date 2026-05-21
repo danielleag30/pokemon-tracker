@@ -35,6 +35,7 @@ export const REGIONS: RegionInfo[] = [
   { id: 'alola',  name: 'Alola',  generation: 7, color: '#FF8800', emoji: '🌺', series: ['Sun & Moon'] },
   { id: 'galar',  name: 'Galar',  generation: 8, color: '#8800CC', emoji: '⚔️', series: ['Sword & Shield'] },
   { id: 'paldea', name: 'Paldea', generation: 9, color: '#EE4444', emoji: '🫐', series: ['Scarlet & Violet'] },
+  { id: 'mega',   name: 'Mega Evolution', generation: 10, color: '#9C27B0', emoji: '💎', series: ['Mega Evolution'] },
 ];
 
 export const SERIES_TO_REGION: Record<string, string> = {
@@ -53,6 +54,7 @@ export const SERIES_TO_REGION: Record<string, string> = {
   'Sun & Moon': 'alola',
   'Sword & Shield': 'galar',
   'Scarlet & Violet': 'paldea',
+  'Mega Evolution': 'mega',
 };
 
 export const STARTER_LINES: StarterLine[] = [
