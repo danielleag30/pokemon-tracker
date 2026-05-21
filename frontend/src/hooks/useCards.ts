@@ -54,15 +54,21 @@ export function useOwnedPokemonNames(): Set<string> {
   const { data: collection } = useCollection();
   const ownedIds = (collection ?? []).map((e) => e.card_id);
 
+  const CHUNK_SIZE = 150;
   const { data } = useQuery<Set<string>>({
-    queryKey: ['owned-pokemon-names', ownedIds.join(',')],
+    queryKey: ['owned-pokemon-names', ownedIds],
     queryFn: async () => {
       if (ownedIds.length === 0) return new Set<string>();
-      const { data: rows } = await supabase
-        .from('cards_vectors')
-        .select('name')
-        .in('card_id', ownedIds);
-      return new Set((rows ?? []).map((r: { name: string }) => r.name));
+      const names = new Set<string>();
+      for (let i = 0; i < ownedIds.length; i += CHUNK_SIZE) {
+        const chunk = ownedIds.slice(i, i + CHUNK_SIZE);
+        const { data: rows } = await supabase
+          .from('cards_vectors')
+          .select('name')
+          .in('card_id', chunk);
+        rows?.forEach((r: { name: string }) => names.add(r.name));
+      }
+      return names;
     },
     enabled: ownedIds.length > 0,
     staleTime: 5 * 60_000,

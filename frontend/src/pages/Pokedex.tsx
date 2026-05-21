@@ -16,9 +16,11 @@ export function Pokedex() {
 
   const collectionMap = useCollectionMap();
   const ownedNames = useOwnedPokemonNames();
-  const binderTags = Array.from(
-    new Set(Array.from(collectionMap.values()).map((e) => e.binder_tag).filter(Boolean) as string[])
-  );
+  const binderTags = useMemo(() => {
+    const tags = new Set<string>();
+    collectionMap.forEach((e) => { if (e.binder_tag) tags.add(e.binder_tag); });
+    return Array.from(tags);
+  }, [collectionMap]);
 
   // ── Layer 2: cards for selected Pokémon ──────────────────────────────────
   const { data: pokemonCardsData, isLoading: cardsLoading } = usePokemonCards(
@@ -108,13 +110,14 @@ export function Pokedex() {
     const q = search.trim().toLowerCase();
     if (!q) return POKEMON_LIST;
     // Support "#004" or "4" style number search
-    if (q.startsWith('#')) {
-      const num = q.slice(1);
-      return POKEMON_LIST.filter((p) => String(p.id).startsWith(num));
-    }
-    const asNum = parseInt(q, 10);
-    if (!isNaN(asNum) && q.match(/^\d+$/)) {
-      return POKEMON_LIST.filter((p) => String(p.id).startsWith(q));
+    if (q.startsWith('#') || q.match(/^\d+$/)) {
+      const numStr = q.startsWith('#') ? q.slice(1) : q;
+      // Match raw ID ("6" → 6, 60…) or zero-padded ID ("#006" → 6)
+      return POKEMON_LIST.filter((p) => {
+        const raw = String(p.id);
+        const padded = raw.padStart(4, '0');
+        return raw.startsWith(numStr) || padded.startsWith(numStr);
+      });
     }
     return POKEMON_LIST.filter((p) => p.name.toLowerCase().includes(q));
   }, [search]);

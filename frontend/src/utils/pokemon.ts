@@ -566,10 +566,11 @@ export const POKEMON_LIST: PokemonEntry[] = [
   { id: 1012, name: 'Poltchageist' }, { id: 1013, name: 'Sinistcha' },
   { id: 1014, name: 'Okidogi' }, { id: 1015, name: 'Munkidori' }, { id: 1016, name: 'Fezandipiti' },
   { id: 1017, name: 'Ogerpon' },
-  { id: 1018, name: 'Gouging Fire' }, { id: 1019, name: 'Raging Bolt' },
-  { id: 1020, name: 'Iron Boulder' }, { id: 1021, name: 'Iron Crown' },
-  { id: 1022, name: 'Terapagos' },
-  { id: 1023, name: 'Pecharunt' },
+  { id: 1018, name: 'Archaludon' }, { id: 1019, name: 'Hydrapple' },
+  { id: 1020, name: 'Gouging Fire' }, { id: 1021, name: 'Raging Bolt' },
+  { id: 1022, name: 'Iron Boulder' }, { id: 1023, name: 'Iron Crown' },
+  { id: 1024, name: 'Terapagos' },
+  { id: 1025, name: 'Pecharunt' },
 ];
 
 export function pokemonSpriteUrl(id: number): string {
