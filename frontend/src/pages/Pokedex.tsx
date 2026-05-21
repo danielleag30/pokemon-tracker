@@ -22,6 +22,21 @@ export function Pokedex() {
     return Array.from(tags);
   }, [collectionMap]);
 
+  // ── Layer 1: filtered list (must be before any early return) ────────────
+  const filteredList = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return POKEMON_LIST;
+    if (q.startsWith('#') || q.match(/^\d+$/)) {
+      const numStr = q.startsWith('#') ? q.slice(1) : q;
+      return POKEMON_LIST.filter((p) => {
+        const raw = String(p.id);
+        const padded = raw.padStart(4, '0');
+        return raw.startsWith(numStr) || padded.startsWith(numStr);
+      });
+    }
+    return POKEMON_LIST.filter((p) => p.name.toLowerCase().includes(q));
+  }, [search]);
+
   // ── Layer 2: cards for selected Pokémon ──────────────────────────────────
   const { data: pokemonCardsData, isLoading: cardsLoading } = usePokemonCards(
     selected?.name ?? '',
@@ -106,22 +121,6 @@ export function Pokedex() {
   }
 
   // ── Layer 1: Pokémon list ─────────────────────────────────────────────────
-  const filteredList = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return POKEMON_LIST;
-    // Support "#004" or "4" style number search
-    if (q.startsWith('#') || q.match(/^\d+$/)) {
-      const numStr = q.startsWith('#') ? q.slice(1) : q;
-      // Match raw ID ("6" → 6, 60…) or zero-padded ID ("#006" → 6)
-      return POKEMON_LIST.filter((p) => {
-        const raw = String(p.id);
-        const padded = raw.padStart(4, '0');
-        return raw.startsWith(numStr) || padded.startsWith(numStr);
-      });
-    }
-    return POKEMON_LIST.filter((p) => p.name.toLowerCase().includes(q));
-  }, [search]);
-
   return (
     <div className="space-y-4 animate-fade-in">
       <div>
