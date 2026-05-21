@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Map, Library, Star, Palette, GitBranch,
-  AlertCircle, Copy, Menu, X, Plus, Search, BookOpen, LogOut
+  AlertCircle, Copy, Menu, X, Plus, Search, BookOpen, BookMarked, LogOut
 } from 'lucide-react';
 import { BatchAddModal } from './BatchAddModal';
 import { SearchAddModal } from './SearchAddModal';
@@ -11,6 +11,7 @@ import { useAuth } from '../contexts/AuthContext';
 const links = [
   { to: '/',          label: 'Dashboard',     icon: LayoutDashboard },
   { to: '/my-cards',  label: 'My Cards',      icon: BookOpen        },
+  { to: '/pokedex',   label: 'Pokédex',       icon: BookMarked      },
   { to: '/sets',      label: 'By Set',        icon: Library         },
   { to: '/region',    label: 'By Region',     icon: Map             },
   { to: '/starters',  label: 'By Starter',    icon: Star            },

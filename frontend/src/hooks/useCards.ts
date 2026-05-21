@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { cardsApi } from '../utils/api';
+import { supabase } from '../lib/supabase';
+import { useCollection } from './useCollection';
 import type { TCGSet, TCGCard } from '../types';
 
 export function useSets() {
@@ -44,4 +46,27 @@ export function usePokemonCards(name: string, enabled = true) {
     enabled: enabled && !!name,
     staleTime: 60 * 60_000,
   });
+}
+
+/** Returns a Set of Pokémon names the user owns at least one card of,
+ *  derived by cross-referencing card_ids in the collection against cards_vectors. */
+export function useOwnedPokemonNames(): Set<string> {
+  const { data: collection } = useCollection();
+  const ownedIds = (collection ?? []).map((e) => e.card_id);
+
+  const { data } = useQuery<Set<string>>({
+    queryKey: ['owned-pokemon-names', ownedIds.join(',')],
+    queryFn: async () => {
+      if (ownedIds.length === 0) return new Set<string>();
+      const { data: rows } = await supabase
+        .from('cards_vectors')
+        .select('name')
+        .in('card_id', ownedIds);
+      return new Set((rows ?? []).map((r: { name: string }) => r.name));
+    },
+    enabled: ownedIds.length > 0,
+    staleTime: 5 * 60_000,
+  });
+
+  return data ?? new Set<string>();
 }
