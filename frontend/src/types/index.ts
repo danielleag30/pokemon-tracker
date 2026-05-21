@@ -103,7 +103,7 @@ export interface CollectionStats {
   binders: Array<{ binder_tag: string; count: number }>;
 }
 
-export type Region = 'kanto' | 'johto' | 'hoenn' | 'sinnoh' | 'unova' | 'kalos' | 'alola' | 'galar' | 'paldea';
+export type Region = 'kanto' | 'johto' | 'hoenn' | 'sinnoh' | 'unova' | 'kalos' | 'alola' | 'galar' | 'paldea' | 'mega';
 
 export interface RegionInfo {
   id: Region;
