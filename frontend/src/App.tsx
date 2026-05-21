@@ -17,6 +17,7 @@ import { BySet } from './pages/BySet';
 import { MissingCards } from './pages/MissingCards';
 import { Duplicates } from './pages/Duplicates';
 import { MyCards } from './pages/MyCards';
+import { Pokedex } from './pages/Pokedex';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -57,6 +58,7 @@ export function App() {
               <Route path="evolution" element={<ByEvolutionStage />} />
               <Route path="sets" element={<BySet />} />
               <Route path="my-cards" element={<MyCards />} />
+              <Route path="pokedex" element={<Pokedex />} />
               <Route path="missing" element={<MissingCards />} />
               <Route path="duplicates" element={<Duplicates />} />
             </Route>
