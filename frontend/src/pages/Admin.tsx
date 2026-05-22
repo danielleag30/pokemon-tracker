@@ -14,7 +14,7 @@ interface AdminUser {
 
 interface ChatFeedbackEntry {
   id: string
-  user_id: string
+  username: string
   message: string
   reply: string
   rating: 1 | -1
@@ -22,16 +22,14 @@ interface ChatFeedbackEntry {
   page_context?: object
   intent?: string
   created_at: string
-  profiles?: { username: string }
 }
 
 interface GeneralFeedbackEntry {
   id: string
-  user_id: string
+  username: string
   rating: 1 | -1
   note?: string
   created_at: string
-  profiles?: { username: string }
 }
 
 type Tab = 'users' | 'chat' | 'general'
@@ -153,7 +151,7 @@ function ChatFeedbackTab() {
         <div key={entry.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-bold text-gray-900 text-sm">{entry.profiles?.username ?? 'Unknown'}</span>
+              <span className="font-bold text-gray-900 text-sm">{entry.username}</span>
               <span className="text-gray-400 text-xs">{formatDateTime(entry.created_at)}</span>
               <IntentBadge intent={entry.intent} />
             </div>
@@ -200,7 +198,7 @@ function GeneralFeedbackTab() {
         <div key={entry.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-bold text-gray-900 text-sm">{entry.profiles?.username ?? 'Unknown'}</span>
+              <span className="font-bold text-gray-900 text-sm">{entry.username}</span>
               <span className="text-gray-400 text-xs">{formatDateTime(entry.created_at)}</span>
             </div>
             <RatingBadge rating={entry.rating} />
