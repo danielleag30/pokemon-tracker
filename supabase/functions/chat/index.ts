@@ -5,6 +5,15 @@ const OLLAMA_URL   = () => Deno.env.get('OLLAMA_CLOUD_URL')   ?? 'https://api.ol
 const OLLAMA_TOKEN = () => Deno.env.get('OLLAMA_CLOUD_TOKEN') ?? '';
 const OLLAMA_MODEL = () => Deno.env.get('OLLAMA_CLOUD_MODEL') ?? 'gemma4:31b-cloud';
 
+// Set CHAT_RESULT_CAP to a number to limit results returned to the AI (e.g. "50").
+// Leave unset for no cap — safe when user count is low.
+const resultCap = (): number | undefined => {
+  const val = Deno.env.get('CHAT_RESULT_CAP');
+  if (!val) return undefined;
+  const n = parseInt(val, 10);
+  return isNaN(n) || n <= 0 ? undefined : n;
+};
+
 // ── Intent detection ──────────────────────────────────────────────────────────
 
 type QueryIntent =
@@ -212,11 +221,12 @@ Deno.serve(async (req) => {
 
     // ── Route by intent ────────────────────────────────────────────────────
     if (intent.type === 'owned_search') {
+      const cap = resultCap();
       const [ownedMatches, globalMatches] = await Promise.all([
         ownedIds.length > 0
-          ? userClient.rpc('match_owned_cards', { query_embedding: queryEmbedding, owned_card_ids: ownedIds })
+          ? userClient.rpc('match_owned_cards', { query_embedding: queryEmbedding, owned_card_ids: ownedIds, ...(cap ? { match_count: cap } : {}) })
           : Promise.resolve({ data: [] }),
-        userClient.rpc('match_cards', { query_embedding: queryEmbedding, match_count: 10 }),
+        userClient.rpc('match_cards', { query_embedding: queryEmbedding, match_count: cap ?? 10 }),
       ]);
       const seen = new Set<string>();
       for (const c of [...(ownedMatches.data ?? []), ...(globalMatches.data ?? [])]) {
@@ -309,7 +319,7 @@ Deno.serve(async (req) => {
 
     } else {
       // General: global vector search only
-      const { data } = await userClient.rpc('match_cards', { query_embedding: queryEmbedding, match_count: 25 });
+      const { data } = await userClient.rpc('match_cards', { query_embedding: queryEmbedding, match_count: resultCap() ?? 25 });
       (data ?? []).forEach((c: CardRow) => contextLines.push(formatCard(c, ownedMap)));
     }
 
