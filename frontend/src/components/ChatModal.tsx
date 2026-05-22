@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { MessageCircle, X, Send, Mic, MicOff, Camera, Loader2 } from 'lucide-react';
+import { MessageCircle, X, Send, Mic, MicOff, Camera, Loader2, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { chatApi, cardsApi } from '../utils/api';
 import type { ChatMessage, ChatPageContext, TCGCard } from '../types';
 
@@ -11,16 +11,18 @@ interface Props {
 }
 
 export function ChatModal({ pageContext }: Props) {
-  const [open, setOpen]       = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput]     = useState('');
-  const [loading, setLoading] = useState(false);
+  const [open, setOpen]           = useState(false);
+  const [messages, setMessages]   = useState<ChatMessage[]>([]);
+  const [input, setInput]         = useState('');
+  const [loading, setLoading]     = useState(false);
   const [listening, setListening] = useState(false);
   const [cardCache, setCardCache] = useState<Record<string, TCGCard>>({});
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  // keyed by assistant message index → 1 (up) | -1 (down)
+  const [feedback, setFeedback]   = useState<Record<number, 1 | -1>>({});
 
-  const bottomRef   = useRef<HTMLDivElement>(null);
-  const inputRef    = useRef<HTMLTextAreaElement>(null);
+  const bottomRef      = useRef<HTMLDivElement>(null);
+  const inputRef       = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<AnySpeechRecognition>(null);
 
   useEffect(() => {
@@ -55,6 +57,7 @@ export function ChatModal({ pageContext }: Props) {
         role: 'assistant',
         content: res.reply,
         cardIds: res.cardIds,
+        intent: res.intent,
       };
       setMessages(prev => [...prev, assistantMsg]);
       if (res.cardIds?.length) fetchCards(res.cardIds);
@@ -64,6 +67,27 @@ export function ChatModal({ pageContext }: Props) {
       setLoading(false);
     }
   }, [pageContext, fetchCards]);
+
+  const submitFeedback = useCallback(async (assistantIdx: number, rating: 1 | -1) => {
+    if (feedback[assistantIdx] !== undefined) return; // already rated
+    setFeedback(prev => ({ ...prev, [assistantIdx]: rating }));
+
+    const assistantMsg = messages[assistantIdx];
+    // find the user message immediately preceding this assistant message
+    const userMsg = messages.slice(0, assistantIdx).reverse().find(m => m.role === 'user');
+
+    try {
+      await chatApi.feedback({
+        message:     userMsg?.content ?? '',
+        reply:       assistantMsg.content,
+        rating,
+        pageContext:  pageContext as object | undefined,
+        intent:      assistantMsg.intent,
+      });
+    } catch {
+      // feedback failure is silent — don't disrupt the conversation
+    }
+  }, [messages, feedback, pageContext]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,7 +111,7 @@ export function ChatModal({ pageContext }: Props) {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) return;
     const recognition = new SpeechRecognition();
-    recognition.continuous = false;
+    recognition.continuous    = false;
     recognition.interimResults = false;
     recognition.onresult = (e: AnySpeechRecognition) => {
       const transcript = e.results[0][0].transcript;
@@ -107,14 +131,14 @@ export function ChatModal({ pageContext }: Props) {
       video.srcObject = stream;
       await video.play();
       const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
+      canvas.width  = video.videoWidth;
       canvas.height = video.videoHeight;
       canvas.getContext('2d')!.drawImage(video, 0, 0);
       const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
       setImagePreview(base64);
       inputRef.current?.focus();
     } catch {
-      // Camera denied or unavailable
+      // camera denied or unavailable
     } finally {
       stream?.getTracks().forEach(t => t.stop());
     }
@@ -122,37 +146,88 @@ export function ChatModal({ pageContext }: Props) {
 
   const renderMessage = (msg: ChatMessage, i: number) => {
     const isUser = msg.role === 'user';
+
+    if (isUser) {
+      return (
+        <div key={i} className="flex justify-end mb-3">
+          <div className="max-w-[85%] rounded-2xl rounded-br-sm px-3.5 py-2.5 text-sm leading-relaxed bg-blue-600 text-white">
+            {msg.imagePreview && (
+              <img
+                src={`data:image/jpeg;base64,${msg.imagePreview}`}
+                alt="captured"
+                className="rounded-lg mb-2 max-h-32 object-contain"
+              />
+            )}
+            <p className="whitespace-pre-wrap">{msg.content}</p>
+          </div>
+        </div>
+      );
+    }
+
+    const rated = feedback[i];
     return (
-      <div key={i} className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-3`}>
-        <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
-          isUser ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-white border border-gray-200 text-gray-800 rounded-bl-sm shadow-sm'
-        }`}>
-          {msg.imagePreview && (
-            <img
-              src={`data:image/jpeg;base64,${msg.imagePreview}`}
-              alt="captured"
-              className="rounded-lg mb-2 max-h-32 object-contain"
-            />
-          )}
-          <p className="whitespace-pre-wrap">{msg.content}</p>
-          {msg.cardIds && msg.cardIds.length > 0 && (
-            <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
-              {msg.cardIds.map(id => {
-                const card = cardCache[id];
-                return card ? (
-                  <img
-                    key={id}
-                    src={card.images.small}
-                    alt={card.name}
-                    title={`${card.name} — ${card.set.name}`}
-                    className="h-20 rounded-lg flex-shrink-0 shadow-md hover:scale-105 transition-transform cursor-pointer"
-                  />
-                ) : (
-                  <div key={id} className="h-20 w-14 rounded-lg bg-gray-100 flex-shrink-0 animate-pulse" />
-                );
-              })}
-            </div>
-          )}
+      <div key={i} className="flex justify-start mb-1">
+        <div className="max-w-[85%]">
+          <div className="rounded-2xl rounded-bl-sm px-3.5 py-2.5 text-sm leading-relaxed bg-white border border-gray-200 text-gray-800 shadow-sm">
+            {msg.imagePreview && (
+              <img
+                src={`data:image/jpeg;base64,${msg.imagePreview}`}
+                alt="captured"
+                className="rounded-lg mb-2 max-h-32 object-contain"
+              />
+            )}
+            <p className="whitespace-pre-wrap">{msg.content}</p>
+            {msg.cardIds && msg.cardIds.length > 0 && (
+              <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
+                {msg.cardIds.map(id => {
+                  const card = cardCache[id];
+                  return card ? (
+                    <img
+                      key={id}
+                      src={card.images.small}
+                      alt={card.name}
+                      title={`${card.name} — ${card.set.name}`}
+                      className="h-20 rounded-lg flex-shrink-0 shadow-md hover:scale-105 transition-transform cursor-pointer"
+                    />
+                  ) : (
+                    <div key={id} className="h-20 w-14 rounded-lg bg-gray-100 flex-shrink-0 animate-pulse" />
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Feedback row */}
+          <div className="flex items-center gap-1 mt-1 ml-1">
+            <button
+              onClick={() => submitFeedback(i, 1)}
+              disabled={rated !== undefined}
+              aria-label="Helpful"
+              className={`p-1 rounded-lg transition-colors ${
+                rated === 1
+                  ? 'text-green-600'
+                  : rated !== undefined
+                    ? 'text-gray-300 cursor-default'
+                    : 'text-gray-300 hover:text-green-500 hover:bg-green-50'
+              }`}
+            >
+              <ThumbsUp size={13} />
+            </button>
+            <button
+              onClick={() => submitFeedback(i, -1)}
+              disabled={rated !== undefined}
+              aria-label="Not helpful"
+              className={`p-1 rounded-lg transition-colors ${
+                rated === -1
+                  ? 'text-red-500'
+                  : rated !== undefined
+                    ? 'text-gray-300 cursor-default'
+                    : 'text-gray-300 hover:text-red-400 hover:bg-red-50'
+              }`}
+            >
+              <ThumbsDown size={13} />
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -188,7 +263,7 @@ export function ChatModal({ pageContext }: Props) {
         {messages.length === 0 && (
           <div className="text-center text-gray-400 text-sm mt-8 px-4">
             <p className="font-medium text-gray-500 mb-1">Ask me anything about your collection</p>
-            <p className="text-xs">Try: "Which Charizard cards do I own?" or "What's missing from my Kanto collection?"</p>
+            <p className="text-xs">Try: "What fire type cards do I own?" or "Which sets am I closest to completing?"</p>
           </div>
         )}
         {messages.map(renderMessage)}

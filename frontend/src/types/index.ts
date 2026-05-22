@@ -131,6 +131,7 @@ export interface ChatMessage {
   content: string;
   cardIds?: string[];
   imagePreview?: string;
+  intent?: string;
 }
 
 export interface ChatPageContext {

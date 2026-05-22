@@ -71,9 +71,16 @@ export const chatApi = {
   send: (
     message: string,
     pageContext?: { page?: string; setId?: string; regionId?: string; visibleCardIds?: string[] }
-  ): Promise<{ reply: string; cardIds: string[] }> =>
-    client.post(`${FUNCTIONS}/chat`, {
-      message,
-      pageContext,
-    }).then((r) => r.data),
+  ): Promise<{ reply: string; cardIds: string[]; intent: string }> =>
+    client.post(`${FUNCTIONS}/chat`, { message, pageContext }).then((r) => r.data),
+
+  feedback: (payload: {
+    message: string;
+    reply: string;
+    rating: 1 | -1;
+    note?: string;
+    pageContext?: object;
+    intent?: string;
+  }): Promise<void> =>
+    client.post(`${FUNCTIONS}/chat/feedback`, payload).then((r) => r.data),
 };
