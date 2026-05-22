@@ -85,10 +85,10 @@ Deno.serve(async (req) => {
         return err('Failed to save profile: ' + profileError.message, 500);
       }
 
-      // Send confirmation email via Resend
-      const resendKey = Deno.env.get('RESEND_API_KEY');
-      if (resendKey) {
-        await sendConfirmationEmail(resendKey, realEmail, username, isChild === true);
+      // Send confirmation email via SendGrid
+      const sgKey = Deno.env.get('SENDGRID_API_KEY');
+      if (sgKey) {
+        await sendConfirmationEmail(sgKey, realEmail, username, isChild === true);
       }
 
       return json({ success: true }, 201);
@@ -153,10 +153,10 @@ Deno.serve(async (req) => {
         return json({ success: true }); // still don't reveal failure
       }
 
-      const resendKey = Deno.env.get('RESEND_API_KEY');
-      if (resendKey) {
+      const sgKey = Deno.env.get('SENDGRID_API_KEY');
+      if (sgKey) {
         await sendPinResetEmail(
-          resendKey,
+          sgKey,
           profile.real_email,
           username,
           linkData.properties.action_link,
@@ -224,21 +224,25 @@ async function resendSend(
   subject: string,
   html: string,
 ): Promise<void> {
-  const res = await fetch('https://api.resend.com/emails', {
+  const fromEmail = Deno.env.get('SENDGRID_FROM_EMAIL') ?? '';
+  console.log('SendGrid: sending to', to, '| subject:', subject, '| from:', fromEmail);
+  const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: 'PokeTracker <onboarding@resend.dev>',
-      to,
+      personalizations: [{ to: [{ email: to }] }],
+      from: { email: fromEmail, name: 'PokeTracker' },
       subject,
-      html,
+      content: [{ type: 'text/html', value: html }],
     }),
   });
   if (!res.ok) {
     const text = await res.text();
-    console.error('Resend error:', text);
+    console.error('SendGrid error', res.status, text);
+  } else {
+    console.log('SendGrid success', res.status);
   }
 }
