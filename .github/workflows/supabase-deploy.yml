@@ -27,6 +27,7 @@ jobs:
           supabase functions deploy collection --no-verify-jwt
           supabase functions deploy cards      --no-verify-jwt
           supabase functions deploy chat       --no-verify-jwt
+          supabase functions deploy admin      --no-verify-jwt
           supabase functions deploy ingest-cards --no-verify-jwt
           supabase functions deploy ingest-check --no-verify-jwt
         env:

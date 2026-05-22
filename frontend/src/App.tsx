@@ -18,6 +18,7 @@ import { MissingCards } from './pages/MissingCards';
 import { Duplicates } from './pages/Duplicates';
 import { MyCards } from './pages/MyCards';
 import { Pokedex } from './pages/Pokedex';
+import { Admin } from './pages/Admin';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -61,6 +62,7 @@ export function App() {
               <Route path="pokedex" element={<Pokedex />} />
               <Route path="missing" element={<MissingCards />} />
               <Route path="duplicates" element={<Duplicates />} />
+              <Route path="admin" element={<Admin />} />
             </Route>
           </Routes>
         </AuthProvider>

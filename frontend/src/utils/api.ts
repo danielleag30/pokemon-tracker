@@ -11,7 +11,8 @@ const client = axios.create({ baseURL: BASE });
 client.interceptors.request.use(async (config) => {
   const needsAuth =
     config.url?.includes('/functions/v1/collection') ||
-    config.url?.includes('/functions/v1/chat');
+    config.url?.includes('/functions/v1/chat') ||
+    config.url?.includes('/functions/v1/admin');
 
   if (needsAuth) {
     const { data: { session } } = await supabase.auth.getSession();
@@ -83,4 +84,19 @@ export const chatApi = {
     intent?: string;
   }): Promise<void> =>
     client.post(`${FUNCTIONS}/chat/feedback`, payload).then((r) => r.data),
+};
+
+export const adminApi = {
+  getUsers: () => client.get(`${FUNCTIONS}/admin/users`).then((r) => r.data),
+  getChatFeedback: () => client.get(`${FUNCTIONS}/admin/feedback/chat`).then((r) => r.data),
+  getGeneralFeedback: () => client.get(`${FUNCTIONS}/admin/feedback/general`).then((r) => r.data),
+};
+
+export const feedbackApi = {
+  submitGeneral: async (rating: number, note?: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+    const { error } = await supabase.from('general_feedback').insert({ user_id: user.id, rating, note: note || null });
+    if (error) throw error;
+  },
 };
