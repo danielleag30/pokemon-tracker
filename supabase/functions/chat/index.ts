@@ -214,7 +214,7 @@ Deno.serve(async (req) => {
     if (intent.type === 'owned_search') {
       const [ownedMatches, globalMatches] = await Promise.all([
         ownedIds.length > 0
-          ? userClient.rpc('match_owned_cards', { query_embedding: queryEmbedding, owned_card_ids: ownedIds, match_count: 15 })
+          ? userClient.rpc('match_owned_cards', { query_embedding: queryEmbedding, owned_card_ids: ownedIds })
           : Promise.resolve({ data: [] }),
         userClient.rpc('match_cards', { query_embedding: queryEmbedding, match_count: 10 }),
       ]);
@@ -309,7 +309,7 @@ Deno.serve(async (req) => {
 
     } else {
       // General: global vector search only
-      const { data } = await userClient.rpc('match_cards', { query_embedding: queryEmbedding, match_count: 15 });
+      const { data } = await userClient.rpc('match_cards', { query_embedding: queryEmbedding, match_count: 25 });
       (data ?? []).forEach((c: CardRow) => contextLines.push(formatCard(c, ownedMap)));
     }
 
