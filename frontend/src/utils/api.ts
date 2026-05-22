@@ -87,9 +87,21 @@ export const chatApi = {
 };
 
 export const adminApi = {
-  getUsers: () => client.get(`${FUNCTIONS}/admin/users`).then((r) => r.data),
-  getChatFeedback: () => client.get(`${FUNCTIONS}/admin/feedback/chat`).then((r) => r.data),
-  getGeneralFeedback: () => client.get(`${FUNCTIONS}/admin/feedback/general`).then((r) => r.data),
+  getUsers:          () => client.get(`${FUNCTIONS}/admin/users`).then((r) => r.data),
+  getChatFeedback:   () => client.get(`${FUNCTIONS}/admin/feedback/chat`).then((r) => r.data),
+  getGeneralFeedback:() => client.get(`${FUNCTIONS}/admin/feedback/general`).then((r) => r.data),
+  getMetrics:        () => client.get(`${FUNCTIONS}/admin/metrics`).then((r) => r.data),
+  getChatLogs:       (limit = 100, offset = 0) => client.get(`${FUNCTIONS}/admin/logs`, { params: { limit, offset } }).then((r) => r.data),
+  getChatVolume:     () => client.get(`${FUNCTIONS}/admin/logs/volume`).then((r) => r.data),
+  getIntentBreakdown:() => client.get(`${FUNCTIONS}/admin/logs/intents`).then((r) => r.data),
+  getUserChatLogs:   (userId: string) => client.get(`${FUNCTIONS}/admin/users/${userId}/logs`).then((r) => r.data),
+  createUser:        (payload: { username: string; pin: string; realEmail: string; isChild: boolean }) =>
+                       client.post(`${FUNCTIONS}/admin/users`, payload).then((r) => r.data),
+  deleteUser:        (userId: string) => client.delete(`${FUNCTIONS}/admin/users/${userId}`).then((r) => r.data),
+  resetUserPin:      (userId: string, newPin: string) =>
+                       client.patch(`${FUNCTIONS}/admin/users/${userId}`, { resetPin: newPin }).then((r) => r.data),
+  toggleUserType:    (userId: string, isChild: boolean) =>
+                       client.patch(`${FUNCTIONS}/admin/users/${userId}`, { isChild }).then((r) => r.data),
 };
 
 export const feedbackApi = {

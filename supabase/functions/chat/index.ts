@@ -1,5 +1,5 @@
 import { corsResponse, json, err } from '../_shared/cors.ts';
-import { makeUserClient } from '../_shared/supabase.ts';
+import { makeUserClient, makeClient } from '../_shared/supabase.ts';
 
 const OLLAMA_URL   = () => Deno.env.get('OLLAMA_CLOUD_URL')   ?? 'https://api.ollama.com/v1';
 const OLLAMA_TOKEN = () => Deno.env.get('OLLAMA_CLOUD_TOKEN') ?? '';
@@ -348,6 +348,7 @@ Instructions:
 - Keep responses concise and friendly.`;
 
     // ── Call Ollama Cloud ──────────────────────────────────────────────────
+    const t0 = Date.now();
     const ollamaRes = await fetch(`${OLLAMA_URL()}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -369,8 +370,24 @@ Instructions:
       return err('AI service unavailable', 502);
     }
 
-    const ollamaData = await ollamaRes.json() as { choices: Array<{ message: { content: string } }> };
+    const ollamaData = await ollamaRes.json() as {
+      choices: Array<{ message: { content: string } }>;
+      usage?: { prompt_tokens?: number; completion_tokens?: number };
+    };
     const reply = ollamaData.choices?.[0]?.message?.content ?? 'Sorry, I could not generate a response.';
+    const latencyMs = Date.now() - t0;
+
+    // Fire-and-forget chat log (service role bypasses RLS)
+    makeClient().from('chat_logs').insert({
+      user_id:            user.id,
+      message,
+      reply,
+      intent:             intent.type,
+      latency_ms:         latencyMs,
+      prompt_tokens:      ollamaData.usage?.prompt_tokens      ?? null,
+      completion_tokens:  ollamaData.usage?.completion_tokens  ?? null,
+      context_card_count: contextLines.length,
+    }).then(() => {}).catch((e: unknown) => console.error('chat_log insert failed:', e));
 
     const mentionedCardIds = [...reply.matchAll(/\[([a-z0-9]+-[a-zA-Z0-9]+)\]/g)]
       .map(m => m[1])
