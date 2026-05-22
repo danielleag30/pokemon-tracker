@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 // Service role client — bypasses RLS. Use for admin operations only (never in browser).
 export function makeClient() {
