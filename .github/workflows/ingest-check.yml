@@ -1,0 +1,26 @@
+name: Weekly Card Ingest Check
+
+on:
+  schedule:
+    # Every Monday at 06:00 UTC — picks up sets released over the weekend
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+jobs:
+  ingest-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger ingest-check
+        run: |
+          STATUS=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+            -X POST \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{}' \
+            "https://wmwpjkfgapqyyjsjuhos.supabase.co/functions/v1/ingest-check")
+          echo "Status: $STATUS"
+          cat /tmp/response.json
+          if [ "$STATUS" -ge 500 ]; then
+            echo "Ingest check failed with status $STATUS"
+            exit 1
+          fi
