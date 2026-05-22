@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Map, Library, Star, Palette, GitBranch,
-  AlertCircle, Copy, Menu, X, Plus, Search, BookOpen, BookMarked, LogOut
+  AlertCircle, Copy, Menu, X, Plus, Search, BookOpen, BookMarked, LogOut,
+  MessageSquare, Shield
 } from 'lucide-react';
 import { BatchAddModal } from './BatchAddModal';
 import { SearchAddModal } from './SearchAddModal';
+import { FeedbackModal } from './FeedbackModal';
 import { useAuth } from '../contexts/AuthContext';
 
 const links = [
@@ -22,11 +24,12 @@ const links = [
 ];
 
 export function NavBar() {
-  const { profile, logout } = useAuth();
+  const { profile, isAdmin, logout } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [showBatch, setShowBatch] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
 
   async function handleLogout() {
     await logout();
@@ -95,6 +98,22 @@ export function NavBar() {
               {label}
             </NavLink>
           ))}
+          {isAdmin && (
+            <NavLink
+              to="/admin"
+              onClick={() => setOpen(false)}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  isActive
+                    ? 'bg-pokemon-blue text-white shadow-md'
+                    : 'text-white/60 hover:text-white hover:bg-white/10'
+                }`
+              }
+            >
+              <Shield size={18} />
+              Admin
+            </NavLink>
+          )}
         </nav>
 
         <div className="p-4 border-t border-white/10 space-y-2">
@@ -109,6 +128,15 @@ export function NavBar() {
             className="w-full bg-pokemon-yellow hover:bg-yellow-400 text-pokemon-dark font-bold py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors"
           >
             <Plus size={16} /> Batch Add Cards
+          </button>
+        </div>
+
+        <div className="px-4 pb-3">
+          <button
+            onClick={() => { setShowFeedback(true); setOpen(false); }}
+            className="w-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white font-medium py-2 rounded-xl text-sm flex items-center justify-center gap-1.5 transition-colors"
+          >
+            <MessageSquare size={14} /> Send Feedback
           </button>
         </div>
 
@@ -132,6 +160,7 @@ export function NavBar() {
 
       {showBatch && <BatchAddModal onClose={() => setShowBatch(false)} />}
       {showSearch && <SearchAddModal onClose={() => setShowSearch(false)} />}
+      {showFeedback && <FeedbackModal onClose={() => setShowFeedback(false)} />}
     </>
   );
 }

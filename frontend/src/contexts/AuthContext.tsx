@@ -5,12 +5,14 @@ import { supabase, API } from '../lib/supabase';
 interface Profile {
   username: string;
   is_child: boolean;
+  is_admin: boolean;
 }
 
 interface AuthContextValue {
   session: Session | null;
   user: User | null;
   profile: Profile | null;
+  isAdmin: boolean;
   loading: boolean;
   login: (username: string, pin: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -51,10 +53,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function fetchProfile(session: Session) {
     const { data } = await supabase
       .from('profiles')
-      .select('username, is_child')
+      .select('username, is_child, is_admin')
       .eq('id', session.user.id)
       .single();
-    if (data) setProfile({ username: data.username, is_child: data.is_child });
+    if (data) setProfile({ username: data.username, is_child: data.is_child, is_admin: data.is_admin ?? false });
   }
 
   async function login(username: string, pin: string) {
@@ -94,8 +96,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!res.ok) throw new Error(body.error ?? 'Registration failed');
   }
 
+  const isAdmin = profile?.is_admin ?? false;
+
   return (
-    <AuthContext.Provider value={{ session, user, profile, loading, login, logout, register }}>
+    <AuthContext.Provider value={{ session, user, profile, isAdmin, loading, login, logout, register }}>
       {children}
     </AuthContext.Provider>
   );
