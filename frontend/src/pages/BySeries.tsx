@@ -7,24 +7,27 @@ import { useCollectionMap } from '../hooks/useCollection';
 import { ProgressBar } from '../components/ProgressBar';
 import { CardGrid } from '../components/CardGrid';
 import { SearchBar } from '../components/SearchBar';
-import { REGIONS, SERIES_TO_REGION, POKEMON_TYPES, TYPE_DISPLAY_NAMES } from '../utils/constants';
+import { REGIONS, POKEMON_TYPES, TYPE_DISPLAY_NAMES } from '../utils/constants';
 import { cardsApi } from '../utils/api';
 import type { TCGSet, TCGCard } from '../types';
 
-export function ByRegion() {
-  const { regionId } = useParams<{ regionId?: string }>();
+export function BySeries() {
+  const { seriesSlug } = useParams<{ seriesSlug?: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // layer 1 — region list
-  const [regionSearch, setRegionSearch] = useState('');
+  // Decode series name from URL param
+  const seriesName = seriesSlug ? decodeURIComponent(seriesSlug) : undefined;
+
+  // layer 1 — series list
+  const [seriesSearch, setSeriesSearch] = useState('');
 
   // layer 2 — set list
   const [selectedSet, setSelectedSet] = useState<TCGSet | null>(null);
   const [setSearch, setSetSearch] = useState('');
 
-  // layer 2.5 — see all cards in region (default when a region is selected)
-  const [showAll, setShowAll] = useState(!!regionId);
+  // layer 2.5 — see all cards in series (default when a series is selected)
+  const [showAll, setShowAll] = useState(!!seriesSlug);
   const [allCardSearch, setAllCardSearch] = useState('');
   const [allFilter, setAllFilter] = useState<'all' | 'owned' | 'missing'>('all');
   const [allTypeFilter, setAllTypeFilter] = useState<string>('');
@@ -42,8 +45,8 @@ export function ByRegion() {
   const { data: setsData, isLoading: setsLoading } = useSets();
   const { data: setCardsData, isLoading: cardsLoading } = useSetCards(selectedSet?.id ?? null);
 
-  // Cross-set search within a region — fires when setSearch has text and no set is selected
-  const crossSetQuery = regionId && !selectedSet && setSearch.length >= 2 ? `name:${setSearch}` : '';
+  // Cross-set search within a series — fires when setSearch has text and no set is selected
+  const crossSetQuery = seriesName && !selectedSet && setSearch.length >= 2 ? `name:${setSearch}` : '';
   const { data: crossSetResults, isFetching: crossSetLoading } = useCardSearch(crossSetQuery, !!crossSetQuery);
 
   const collectionMap = useCollectionMap();
@@ -52,9 +55,35 @@ export function ByRegion() {
   ));
 
   const sets = setsData?.data ?? [];
-  const region = REGIONS.find((r) => r.id === regionId);
 
-  const regionSets = regionId ? sets.filter((s) => SERIES_TO_REGION[s.series] === regionId) : [];
+  // Derive series list from set data, ordered chronologically
+  const seriesList = useMemo(() => {
+    const map = new Map<string, { sets: TCGSet[]; owned: number; total: number }>();
+    sets.forEach((s) => {
+      if (!map.has(s.series)) map.set(s.series, { sets: [], owned: 0, total: 0 });
+      const entry = map.get(s.series)!;
+      entry.sets.push(s);
+      entry.total += s.printedTotal;
+      entry.owned += Array.from(collectionMap.keys())
+        .filter((id) => id.startsWith(s.id + '-')).length;
+    });
+    return Array.from(map.entries())
+      .map(([name, data]) => ({
+        name,
+        ...data,
+        color: REGIONS.find((r) => r.series.includes(name))?.color ?? '#3B4CCA',
+        emoji: REGIONS.find((r) => r.series.includes(name))?.emoji ?? '📦',
+      }))
+      .sort((a, b) => {
+        const aDate = Math.min(...a.sets.map((s) => new Date(s.releaseDate).getTime()));
+        const bDate = Math.min(...b.sets.map((s) => new Date(s.releaseDate).getTime()));
+        return aDate - bDate;
+      });
+  }, [sets, collectionMap]);
+
+  // Sets for the current series
+  const seriesSets = seriesName ? sets.filter((s) => s.series === seriesName) : [];
+  const currentSeries = seriesList.find((s) => s.name === seriesName);
 
   // Layer 3 filter
   const allCards = setCardsData?.data ?? [];
@@ -67,29 +96,29 @@ export function ByRegion() {
 
   const ownedInSet = allCards.filter((c) => collectionMap.has(c.id)).length;
 
-  // Cross-set search results filtered to this region
+  // Cross-set search results filtered to this series
   const crossSetCards = (crossSetResults?.data ?? []).filter(
-    (c) => regionId && SERIES_TO_REGION[c.set.series] === regionId
+    (c) => seriesName && c.set.series === seriesName
   );
 
-  // See All — load every set in the region
-  const allRegionSetIds = regionId ? regionSets.map((s) => s.id) : [];
-  const allRegionQueries = useQueries({
-    queries: allRegionSetIds.map((setId) => ({
+  // See All — load every set in the series
+  const allSeriesSetIds = seriesName ? seriesSets.map((s) => s.id) : [];
+  const allSeriesQueries = useQueries({
+    queries: allSeriesSetIds.map((setId) => ({
       queryKey: ['set-cards', setId],
       queryFn: () => cardsApi.getSetCards(setId),
       staleTime: 60 * 60_000,
-      enabled: showAll && !!regionId,
+      enabled: showAll && !!seriesName,
     })),
   });
-  const allRegionLoading = allRegionQueries.some((q) => q.isLoading);
-  const allRegionCards = useMemo(() => {
+  const allSeriesLoading = allSeriesQueries.some((q) => q.isLoading);
+  const allSeriesCards = useMemo(() => {
     const cards: TCGCard[] = [];
-    allRegionQueries.forEach((q) => q.data?.data?.forEach((c: TCGCard) => cards.push(c)));
+    allSeriesQueries.forEach((q) => q.data?.data?.forEach((c: TCGCard) => cards.push(c)));
     return cards;
-  }, [allRegionQueries]);
+  }, [allSeriesQueries]);
   const filteredAllCards = useMemo(() => {
-    return allRegionCards.filter((c) => {
+    return allSeriesCards.filter((c) => {
       const matchSearch = !allCardSearch || c.name.toLowerCase().includes(allCardSearch.toLowerCase()) || c.number.includes(allCardSearch);
       const owned = collectionMap.has(c.id);
       const matchFilter = allFilter === 'all' || (allFilter === 'owned' && owned) || (allFilter === 'missing' && !owned);
@@ -97,52 +126,45 @@ export function ByRegion() {
       const matchSet = !allSetFilter || c.set.id === allSetFilter;
       return matchSearch && matchFilter && matchType && matchSet;
     });
-  }, [allRegionCards, allCardSearch, allFilter, allTypeFilter, allSetFilter, collectionMap]);
+  }, [allSeriesCards, allCardSearch, allFilter, allTypeFilter, allSetFilter, collectionMap]);
 
-  // ── Layer 1: Region selector ──────────────────────────────────────────────
-  if (!regionId) {
-    const visibleRegions = REGIONS.filter((r) =>
-      !regionSearch || r.name.toLowerCase().includes(regionSearch.toLowerCase())
+  // ── Layer 1: Series selector ──────────────────────────────────────────────
+  if (!seriesName) {
+    const visibleSeries = seriesList.filter((s) =>
+      !seriesSearch || s.name.toLowerCase().includes(seriesSearch.toLowerCase())
     );
 
     return (
       <div className="space-y-4 animate-fade-in">
         <div>
-          <h1 className="text-2xl font-black text-gray-900">Browse by Region</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Select a region to explore its sets and cards</p>
+          <h1 className="text-2xl font-black text-gray-900">Browse by Series</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Select a series to explore its sets and cards</p>
         </div>
 
-        <SearchBar value={regionSearch} onChange={setRegionSearch} placeholder="Filter regions…" />
+        <SearchBar value={seriesSearch} onChange={setSeriesSearch} placeholder="Filter series…" />
 
         {setsLoading ? (
           <div className="flex items-center gap-2 text-gray-500"><Loader size={16} className="animate-spin" /> Loading…</div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {visibleRegions.map((r) => {
-              const rSets = sets.filter((s) => SERIES_TO_REGION[s.series] === r.id);
-              const total = rSets.reduce((acc, s) => acc + s.printedTotal, 0);
-              const owned = Array.from(collectionMap.keys()).filter((id) =>
-                rSets.some((s) => id.startsWith(s.id + '-'))
-              ).length;
-              return (
-                <Link
-                  key={r.id}
-                  to={`/region/${r.id}`}
-                  className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-all hover:-translate-y-0.5"
-                >
-                  <div className="flex items-center gap-3 mb-3">
-                    <span className="text-3xl">{r.emoji}</span>
-                    <div>
-                      <h2 className="font-black text-gray-800">{r.name}</h2>
-                      <p className="text-xs text-gray-400">Generation {r.generation} · {rSets.length} sets</p>
-                    </div>
+            {visibleSeries.map((s) => (
+              <Link
+                key={s.name}
+                to={`/series/${encodeURIComponent(s.name)}`}
+                className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-all hover:-translate-y-0.5"
+              >
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-3xl">{s.emoji}</span>
+                  <div>
+                    <h2 className="font-black text-gray-800">{s.name}</h2>
+                    <p className="text-xs text-gray-400">{s.sets.length} sets · {s.total} cards</p>
                   </div>
-                  <ProgressBar value={owned} max={total} color={r.color} height="sm" />
-                </Link>
-              );
-            })}
-            {visibleRegions.length === 0 && (
-              <p className="text-sm text-gray-400 col-span-full py-8 text-center">No regions match "{regionSearch}"</p>
+                </div>
+                <ProgressBar value={s.owned} max={s.total} color={s.color} height="sm" />
+              </Link>
+            ))}
+            {visibleSeries.length === 0 && (
+              <p className="text-sm text-gray-400 col-span-full py-8 text-center">No series match "{seriesSearch}"</p>
             )}
           </div>
         )}
@@ -150,21 +172,21 @@ export function ByRegion() {
     );
   }
 
-  // ── Layer 2.5: All cards in region (default view when region is selected) ─
-  if (regionId && showAll) {
-    const ownedTotal = allRegionCards.filter((c) => collectionMap.has(c.id)).length;
+  // ── Layer 2.5: All cards in series (default view when series is selected) ─
+  if (seriesName && showAll) {
+    const ownedTotal = allSeriesCards.filter((c) => collectionMap.has(c.id)).length;
     return (
       <div className="space-y-4 animate-fade-in">
         <div className="flex items-center gap-3 flex-wrap">
           <button
-            onClick={() => navigate('/region')}
+            onClick={() => navigate('/series')}
             className="text-gray-400 hover:text-gray-600 transition-colors"
           >
             <ChevronLeft size={20} />
           </button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-black text-gray-900">{region?.emoji} All {region?.name} Cards</h1>
-            <p className="text-xs text-gray-400">{allRegionCards.length} total · {ownedTotal} owned</p>
+            <h1 className="text-xl font-black text-gray-900">{currentSeries?.emoji} All {seriesName} Cards</h1>
+            <p className="text-xs text-gray-400">{allSeriesCards.length} total · {ownedTotal} owned</p>
           </div>
           <button
             onClick={() => { setShowAll(false); setAllCardSearch(''); setAllTypeFilter(''); setAllSetFilter(''); setAllFilter('all'); }}
@@ -174,9 +196,9 @@ export function ByRegion() {
           </button>
         </div>
 
-        {!allRegionLoading && allRegionCards.length > 0 && (
+        {!allSeriesLoading && allSeriesCards.length > 0 && (
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-            <ProgressBar value={ownedTotal} max={allRegionCards.length} color={region?.color ?? '#3B4CCA'} label={`${region?.name} completion`} />
+            <ProgressBar value={ownedTotal} max={allSeriesCards.length} color={currentSeries?.color ?? '#3B4CCA'} label={`${seriesName} completion`} />
           </div>
         )}
 
@@ -227,15 +249,15 @@ export function ByRegion() {
             className="border border-gray-200 rounded-xl px-3 py-2 text-xs text-gray-600 bg-white focus:outline-none focus:ring-2 focus:ring-pokemon-blue/30 shrink-0"
           >
             <option value="">All Sets</option>
-            {regionSets.map((s) => (
+            {seriesSets.map((s) => (
               <option key={s.id} value={s.id}>{s.name}</option>
             ))}
           </select>
         </div>
 
-        {allRegionLoading ? (
+        {allSeriesLoading ? (
           <div className="flex items-center justify-center py-12 text-gray-500">
-            <Loader size={20} className="animate-spin mr-2" /> Loading all {region?.name} cards…
+            <Loader size={20} className="animate-spin mr-2" /> Loading all {seriesName} cards…
           </div>
         ) : (
           <CardGrid
@@ -251,7 +273,7 @@ export function ByRegion() {
 
   // ── Layer 2: Set list + cross-set search ──────────────────────────────────
   if (!selectedSet) {
-    const filteredSets = regionSets.filter((s) =>
+    const filteredSets = seriesSets.filter((s) =>
       !setSearch || s.name.toLowerCase().includes(setSearch.toLowerCase())
     );
 
@@ -260,17 +282,17 @@ export function ByRegion() {
     return (
       <div className="space-y-4 animate-fade-in">
         <div className="flex items-center gap-3 flex-wrap">
-          <button onClick={() => navigate('/region')} className="text-gray-400 hover:text-gray-600 transition-colors">
+          <button onClick={() => navigate('/series')} className="text-gray-400 hover:text-gray-600 transition-colors">
             <ChevronLeft size={20} />
           </button>
           <div className="flex-1">
-            <h1 className="text-2xl font-black text-gray-900">{region?.emoji} {region?.name}</h1>
-            <p className="text-sm text-gray-500">{regionSets.length} sets</p>
+            <h1 className="text-2xl font-black text-gray-900">{currentSeries?.emoji} {seriesName}</h1>
+            <p className="text-sm text-gray-500">{seriesSets.length} sets</p>
           </div>
           <button
             onClick={() => setShowAll(true)}
             className="text-sm font-semibold px-4 py-2 rounded-xl transition-colors text-white"
-            style={{ backgroundColor: region?.color ?? '#3B4CCA' }}
+            style={{ backgroundColor: currentSeries?.color ?? '#3B4CCA' }}
           >
             ← All Cards
           </button>
@@ -279,14 +301,14 @@ export function ByRegion() {
         <SearchBar
           value={setSearch}
           onChange={setSetSearch}
-          placeholder={`Search sets or cards in ${region?.name}…`}
+          placeholder={`Search sets or cards in ${seriesName}…`}
         />
 
         {/* Cross-set card search results */}
         {showCrossSearch ? (
           <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-              Cards matching "{setSearch}" in {region?.name}
+              Cards matching "{setSearch}" in {seriesName}
             </p>
             {crossSetLoading ? (
               <div className="flex items-center gap-2 text-gray-500 py-8 justify-center">
@@ -298,7 +320,7 @@ export function ByRegion() {
                   cards={crossSetCards}
                   collectionMap={collectionMap}
                   binderTags={binderTags}
-                  emptyMessage={`No cards named "${setSearch}" found in ${region?.name}.`}
+                  emptyMessage={`No cards named "${setSearch}" found in ${seriesName}.`}
                 />
                 {crossSetCards.length > 0 && filteredSets.length > 0 && (
                   <p className="text-xs text-gray-400 mt-4 mb-2 font-semibold uppercase tracking-wide">
@@ -307,11 +329,10 @@ export function ByRegion() {
                 )}
               </>
             )}
-            {/* Also show matching set names below card results */}
             {filteredSets.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
                 {filteredSets.map((set) => (
-                  <SetCard key={set.id} set={set} region={region} onClick={() => setSelectedSet(set)} collectionMap={collectionMap} />
+                  <SetCard key={set.id} set={set} color={currentSeries?.color} onClick={() => setSelectedSet(set)} collectionMap={collectionMap} />
                 ))}
               </div>
             )}
@@ -322,7 +343,7 @@ export function ByRegion() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {filteredSets.map((set) => (
-                <SetCard key={set.id} set={set} region={region} onClick={() => setSelectedSet(set)} collectionMap={collectionMap} />
+                <SetCard key={set.id} set={set} color={currentSeries?.color} onClick={() => setSelectedSet(set)} collectionMap={collectionMap} />
               ))}
               {filteredSets.length === 0 && (
                 <p className="text-sm text-gray-400 col-span-full py-8 text-center">No sets match "{setSearch}"</p>
@@ -350,7 +371,7 @@ export function ByRegion() {
 
       {!cardsLoading && allCards.length > 0 && (
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-          <ProgressBar value={ownedInSet} max={allCards.length} color={region?.color ?? '#3B4CCA'} label={`${selectedSet.name} completion`} />
+          <ProgressBar value={ownedInSet} max={allCards.length} color={currentSeries?.color ?? '#3B4CCA'} label={`${selectedSet.name} completion`} />
         </div>
       )}
 
@@ -382,10 +403,9 @@ export function ByRegion() {
   );
 }
 
-// Small helper so JSX stays clean above
-function SetCard({ set, region, onClick, collectionMap }: {
+function SetCard({ set, color, onClick, collectionMap }: {
   set: TCGSet;
-  region: ReturnType<typeof REGIONS.find>;
+  color?: string;
   onClick: () => void;
   collectionMap: Map<string, any>;
 }) {
@@ -402,7 +422,7 @@ function SetCard({ set, region, onClick, collectionMap }: {
           <p className="text-xs text-gray-400">{set.releaseDate} · {set.printedTotal} cards</p>
         </div>
       </div>
-      <ProgressBar value={owned} max={set.printedTotal} color={region?.color ?? '#3B4CCA'} height="sm" />
+      <ProgressBar value={owned} max={set.printedTotal} color={color ?? '#3B4CCA'} height="sm" />
     </button>
   );
 }

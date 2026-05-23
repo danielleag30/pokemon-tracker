@@ -9,7 +9,7 @@ import { ForgotPin } from './pages/ForgotPin';
 import { ResetPin } from './pages/ResetPin';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { Dashboard } from './pages/Dashboard';
-import { ByRegion } from './pages/ByRegion';
+import { BySeries } from './pages/BySeries';
 import { ByStarter } from './pages/ByStarter';
 import { ByType } from './pages/ByType';
 import { ByEvolutionStage } from './pages/ByEvolutionStage';
@@ -52,8 +52,8 @@ export function App() {
               }
             >
               <Route index element={<Dashboard />} />
-              <Route path="region" element={<ByRegion />} />
-              <Route path="region/:regionId" element={<ByRegion />} />
+              <Route path="series" element={<BySeries />} />
+              <Route path="series/:seriesSlug" element={<BySeries />} />
               <Route path="starters" element={<ByStarter />} />
               <Route path="type" element={<ByType />} />
               <Route path="evolution" element={<ByEvolutionStage />} />

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, Map, Library, Star, Palette, GitBranch,
+  LayoutDashboard, Library, Layers, Star, Palette, GitBranch,
   AlertCircle, Copy, Menu, X, Plus, Search, BookOpen, BookMarked, LogOut,
   MessageSquare, Shield
 } from 'lucide-react';
@@ -15,7 +15,7 @@ const links = [
   { to: '/my-cards',  label: 'My Cards',      icon: BookOpen        },
   { to: '/pokedex',   label: 'Pokédex',       icon: BookMarked      },
   { to: '/sets',      label: 'By Set',        icon: Library         },
-  { to: '/region',    label: 'By Region',     icon: Map             },
+  { to: '/series',    label: 'By Series',     icon: Layers          },
   { to: '/starters',  label: 'By Starter',    icon: Star            },
   { to: '/type',      label: 'By Type',       icon: Palette         },
   { to: '/evolution', label: 'By Evolution',  icon: GitBranch       },

@@ -9,7 +9,7 @@ import { SERIES_TO_REGION, STARTER_LINES, TYPE_DISPLAY_NAMES, REGIONS } from '..
 import { FOIL_LABELS, FOIL_PRIORITY, type FoilType } from '../types';
 import type { TCGCard, CollectionEntry } from '../types';
 
-type GroupBy = 'set' | 'region' | 'starter' | 'type' | 'evolution' | 'value';
+type GroupBy = 'set' | 'series' | 'starter' | 'type' | 'evolution' | 'value';
 
 interface OwnedCard {
   entry: CollectionEntry;
@@ -109,10 +109,10 @@ export function MyCards() {
           label = item.card.set.name;
           break;
         }
-        case 'region': {
-          const regionId = SERIES_TO_REGION[item.card.set.series] ?? 'other';
-          const region = REGIONS.find((r) => r.id === regionId);
-          key = regionId;
+        case 'series': {
+          const seriesId = SERIES_TO_REGION[item.card.set.series] ?? 'other';
+          const region = REGIONS.find((r) => r.id === seriesId);
+          key = seriesId;
           label = region?.name ?? 'Other';
           emoji = region?.emoji;
           break;
@@ -176,11 +176,11 @@ export function MyCards() {
         const bDate = b.cards[0]?.card.set.releaseDate ?? '';
         return bDate.localeCompare(aDate);
       });
-    } else if (groupBy === 'region') {
-      const regionOrder: string[] = REGIONS.map((r) => r.id);
+    } else if (groupBy === 'series') {
+      const seriesOrder: string[] = REGIONS.map((r) => r.id);
       result.sort((a, b) => {
-        const ai = regionOrder.indexOf(a.key);
-        const bi = regionOrder.indexOf(b.key);
+        const ai = seriesOrder.indexOf(a.key);
+        const bi = seriesOrder.indexOf(b.key);
         return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
       });
     } else if (groupBy === 'evolution') {
@@ -229,7 +229,7 @@ export function MyCards() {
 
   const GROUP_OPTIONS: { value: GroupBy; label: string }[] = [
     { value: 'set',       label: 'By Set'       },
-    { value: 'region',    label: 'By Region'    },
+    { value: 'series',    label: 'By Series'    },
     { value: 'starter',   label: 'By Starter'   },
     { value: 'type',      label: 'By Type'      },
     { value: 'evolution', label: 'By Evolution' },

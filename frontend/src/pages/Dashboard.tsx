@@ -107,8 +107,8 @@ export function Dashboard() {
       {/* Region progress */}
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-bold text-gray-700">Progress by Region</h2>
-          <Link to="/region" className="text-xs text-pokemon-blue hover:underline font-medium">
+          <h2 className="text-sm font-bold text-gray-700">Progress by Series</h2>
+          <Link to="/series" className="text-xs text-pokemon-blue hover:underline font-medium">
             View all →
           </Link>
         </div>
@@ -117,16 +117,16 @@ export function Dashboard() {
             <div key={r.id} className="rounded-xl p-2 -m-2">
               <div className="flex items-center gap-2 mb-1.5">
                 <span className="text-base">{r.emoji}</span>
-                <Link to={`/region/${r.id}`} className="text-sm font-semibold text-gray-700 hover:text-pokemon-blue transition-colors">
+                <Link to="/series" className="text-sm font-semibold text-gray-700 hover:text-pokemon-blue transition-colors">
                   {r.name}
                 </Link>
                 <span className="text-xs text-gray-400">Gen {r.generation}</span>
                 <Link
-                  to={`/region/${r.id}?all=1`}
+                  to="/series"
                   className="ml-auto text-xs font-semibold hover:underline transition-colors"
                   style={{ color: r.color }}
                 >
-                  See All →
+                  View Series →
                 </Link>
               </div>
               <ProgressBar value={r.owned} max={r.total} color={r.color} height="sm" />

@@ -67,7 +67,7 @@ export function ByType() {
         <h1 className="text-2xl font-black text-gray-900">Browse by Type</h1>
         <p className="text-sm text-gray-500 mt-0.5">
           {selectedType
-            ? `Showing ${TYPE_DISPLAY_NAMES[selectedType] ?? selectedType} cards — filter by region, search by name, or pick a set`
+            ? `Showing ${TYPE_DISPLAY_NAMES[selectedType] ?? selectedType} cards — filter by series, search by name, or pick a set`
             : 'Select a type to explore cards'}
         </p>
       </div>
@@ -129,7 +129,7 @@ export function ByType() {
               onChange={(e) => setRegionFilter(e.target.value)}
               className="border border-gray-200 rounded-xl px-3 py-2 text-xs text-gray-600 bg-white focus:outline-none focus:ring-2 focus:ring-pokemon-blue/30 shrink-0"
             >
-              <option value="">All Regions</option>
+              <option value="">All Series</option>
               {REGIONS.map((r) => (
                 <option key={r.id} value={r.id}>{r.emoji} {r.name}</option>
               ))}

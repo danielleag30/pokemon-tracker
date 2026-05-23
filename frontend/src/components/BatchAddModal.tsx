@@ -10,7 +10,7 @@ import { REGIONS, SERIES_TO_REGION } from '../utils/constants';
 import { cardsApi } from '../utils/api';
 import type { TCGCard } from '../types';
 
-type Mode = 'set' | 'region' | 'type' | 'search';
+type Mode = 'set' | 'series' | 'type' | 'search';
 
 const SUBTYPE_KEYWORDS = ['GX', 'EX', 'V', 'VMAX', 'VSTAR', 'BREAK', 'Mega', 'LEGEND', 'Radiant', 'Prism Star'];
 const TYPE_KEYWORDS = ['Fire', 'Water', 'Grass', 'Lightning', 'Psychic', 'Fighting', 'Darkness', 'Metal', 'Dragon', 'Fairy', 'Colorless'];
@@ -36,7 +36,7 @@ interface Props {
 export function BatchAddModal({ onClose }: Props) {
   const [mode, setMode] = useState<Mode>('set');
   const [selectedSet, setSelectedSet] = useState('');
-  const [selectedRegion, setSelectedRegion] = useState('');
+  const [selectedSeries, setSelectedSeries] = useState('');
   const [selectedType, setSelectedType] = useState('');
   const [cardFilter, setCardFilter] = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -66,26 +66,26 @@ export function BatchAddModal({ onClose }: Props) {
 
   const sets = setsData?.data ?? [];
 
-  // Sets belonging to the selected region
-  const regionSetIds = useMemo(() => {
-    if (!selectedRegion) return [];
-    return sets.filter((s) => SERIES_TO_REGION[s.series] === selectedRegion).map((s) => s.id);
-  }, [selectedRegion, sets]);
+  // Sets belonging to the selected series (era)
+  const seriesSetIds = useMemo(() => {
+    if (!selectedSeries) return [];
+    return sets.filter((s) => SERIES_TO_REGION[s.series] === selectedSeries).map((s) => s.id);
+  }, [selectedSeries, sets]);
 
-  // Fetch all cards for every set in the region (cached server-side)
-  const regionSetQueries = useQueries({
-    queries: regionSetIds.map((setId) => ({
+  // Fetch all cards for every set in the series (cached server-side)
+  const seriesSetQueries = useQueries({
+    queries: seriesSetIds.map((setId) => ({
       queryKey: ['set-cards', setId],
       queryFn: () => cardsApi.getSetCards(setId),
       staleTime: 60 * 60_000,
     })),
   });
-  const regionLoading = regionSetQueries.some((q) => q.isLoading);
-  const regionCards = useMemo(() => {
+  const seriesLoading = seriesSetQueries.some((q) => q.isLoading);
+  const seriesCards = useMemo(() => {
     const cards: TCGCard[] = [];
-    regionSetQueries.forEach((q) => q.data?.data?.forEach((c: TCGCard) => cards.push(c)));
+    seriesSetQueries.forEach((q) => q.data?.data?.forEach((c: TCGCard) => cards.push(c)));
     return cards;
-  }, [regionSetQueries]);
+  }, [seriesSetQueries]);
 
   const allSetCards: TCGCard[] = setCardsData?.data ?? [];
   const searchResults: TCGCard[] = searchData?.data ?? [];
@@ -95,13 +95,13 @@ export function BatchAddModal({ onClose }: Props) {
   const activeCards = useMemo(() => {
     let base: TCGCard[] = [];
     if (mode === 'set') base = allSetCards;
-    else if (mode === 'region') base = regionCards;
+    else if (mode === 'series') base = seriesCards;
     else if (mode === 'type') base = typeResults;
     else base = searchResults;
     if (!cardFilter) return base;
     const f = cardFilter.toLowerCase();
     return base.filter((c) => c.name.toLowerCase().includes(f) || c.number.includes(cardFilter));
-  }, [mode, allSetCards, regionCards, typeResults, searchResults, cardFilter]);
+  }, [mode, allSetCards, seriesCards, typeResults, searchResults, cardFilter]);
 
   const pokemonCards = activeCards.filter((c) => c.supertype === 'Pokémon');
 
@@ -156,13 +156,13 @@ export function BatchAddModal({ onClose }: Props) {
 
   const isLoading =
     (mode === 'set' && setCardsLoading) ||
-    (mode === 'region' && regionLoading) ||
+    (mode === 'series' && seriesLoading) ||
     (mode === 'type' && typeLoading) ||
     (mode === 'search' && searchLoading);
 
   const showBulkActions =
     (mode === 'set' && !!selectedSet && activeCards.length > 0) ||
-    (mode === 'region' && !!selectedRegion && activeCards.length > 0) ||
+    (mode === 'series' && !!selectedSeries && activeCards.length > 0) ||
     (mode === 'type' && !!selectedType && activeCards.length > 0) ||
     (mode === 'search' && searchResults.length > 0);
 
@@ -231,7 +231,7 @@ export function BatchAddModal({ onClose }: Props) {
 
         {/* Mode toggle */}
         <div className="px-4 pt-3 flex gap-2 flex-wrap">
-          {([['set', 'By Set'], ['region', 'By Region'], ['type', 'By Type'], ['search', 'By Search']] as [Mode, string][]).map(([m, label]) => (
+          {([['set', 'By Set'], ['series', 'By Series'], ['type', 'By Type'], ['search', 'By Search']] as [Mode, string][]).map(([m, label]) => (
             <button
               key={m}
               onClick={() => switchMode(m)}
@@ -272,20 +272,20 @@ export function BatchAddModal({ onClose }: Props) {
                 </>
               )}
 
-              {mode === 'region' && (
+              {mode === 'series' && (
                 <>
-                  <label className="text-xs font-semibold text-gray-600 mb-1 block">Select Region</label>
+                  <label className="text-xs font-semibold text-gray-600 mb-1 block">Select Series</label>
                   <div className="flex flex-wrap gap-1.5">
                     {REGIONS.map((r) => (
                       <button
                         key={r.id}
-                        onClick={() => { setSelectedRegion(r.id); setSelected(new Map()); }}
+                        onClick={() => { setSelectedSeries(r.id); setSelected(new Map()); }}
                         className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
-                          selectedRegion === r.id
+                          selectedSeries === r.id
                             ? 'text-white'
                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                         }`}
-                        style={selectedRegion === r.id ? { backgroundColor: r.color } : {}}
+                        style={selectedSeries === r.id ? { backgroundColor: r.color } : {}}
                       >
                         {r.emoji} {r.name}
                       </button>
@@ -376,8 +376,8 @@ export function BatchAddModal({ onClose }: Props) {
             </div>
           )}
 
-          {/* Card filter (set + region + type modes) */}
-          {(mode === 'set' && selectedSet) || (mode === 'region' && selectedRegion && regionCards.length > 0) || (mode === 'type' && selectedType && typeResults.length > 0) ? (
+          {/* Card filter (set + series + type modes) */}
+          {(mode === 'set' && selectedSet) || (mode === 'series' && selectedSeries && seriesCards.length > 0) || (mode === 'type' && selectedType && typeResults.length > 0) ? (
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
@@ -396,7 +396,7 @@ export function BatchAddModal({ onClose }: Props) {
           {isLoading && (
             <div className="flex items-center justify-center py-12 text-gray-500">
               <Loader size={20} className="animate-spin mr-2" />
-              {mode === 'region' ? `Loading ${REGIONS.find(r => r.id === selectedRegion)?.name} cards…` : 'Loading…'}
+              {mode === 'series' ? `Loading ${REGIONS.find(r => r.id === selectedSeries)?.name} cards…` : 'Loading…'}
             </div>
           )}
 
@@ -413,10 +413,10 @@ export function BatchAddModal({ onClose }: Props) {
               <p className="text-sm">Select a set above to browse cards</p>
             </div>
           )}
-          {!isLoading && mode === 'region' && !selectedRegion && (
+          {!isLoading && mode === 'series' && !selectedSeries && (
             <div className="flex flex-col items-center justify-center py-12 text-gray-400">
-              <span className="text-4xl mb-2">🗺️</span>
-              <p className="text-sm">Select a region above to browse all its cards</p>
+              <span className="text-4xl mb-2">📚</span>
+              <p className="text-sm">Select a series above to browse all its cards</p>
             </div>
           )}
           {!isLoading && mode === 'type' && !selectedType && (
