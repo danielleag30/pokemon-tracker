@@ -8,7 +8,8 @@ A full-stack Pokémon TCG collection tracker with an AI chat assistant. Browse, 
 
 - **9 views** — Dashboard, My Cards, By Set, By Region, By Starter, By Type, By Evolution Stage, Missing Cards, Duplicates
 - **AI chat assistant** — ask questions about your collection in plain English; powered by a full RAG pipeline over 13k+ indexed cards
-- **Voice & camera input** — speak queries or photograph a card to identify it
+- **Voice input** — speak queries directly into the chat assistant
+- **Camera input** *(experimental, untested)* — photograph a card to identify it
 - **Batch add mode** — browse any set and check off owned cards in bulk
 - **Foil tier tracking** — Normal, Reverse Holo, Holo, and 1st Edition tracked per card
 - **Set & region completion** — progress bars and missing card lists per set, region, and type
