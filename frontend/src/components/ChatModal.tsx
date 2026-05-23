@@ -10,7 +10,7 @@ interface Props {
   pageContext?: ChatPageContext;
 }
 
-type Phase = 'closed' | 'opening' | 'open' | 'closing';
+type Phase = 'closed' | 'shaking' | 'opening' | 'open' | 'closing';
 
 export function ChatModal({ pageContext }: Props) {
   const [phase, setPhase]         = useState<Phase>('closed');
@@ -33,14 +33,18 @@ export function ChatModal({ pageContext }: Props) {
 
   const handleOpen = useCallback(() => {
     if (phase !== 'closed') return;
-    setPhase('opening');
-    setTimeout(() => setPhase('open'), 400);
+    setPhase('shaking');
+    // After shake (650ms), open the hinge + slide button out + pop chat in
+    setTimeout(() => setPhase('opening'), 650);
+    // After shake + opening animations settle (~450ms), mark fully open
+    setTimeout(() => setPhase('open'), 650 + 450);
   }, [phase]);
 
   const handleClose = useCallback(() => {
     if (phase !== 'open') return;
     setPhase('closing');
-    setTimeout(() => setPhase('closed'), 350);
+    // chat-disappear: 280ms + button-enter: 220ms + delay 240ms ≈ 700ms total
+    setTimeout(() => setPhase('closed'), 700);
   }, [phase]);
 
   // Focus input once the modal is fully open
@@ -254,8 +258,10 @@ export function ChatModal({ pageContext }: Props) {
     );
   };
 
-  const showButton = phase === 'closed' || phase === 'opening' || phase === 'closing';
-  const showModal  = phase === 'open'   || phase === 'opening' || phase === 'closing';
+  // Button is visible every phase except when chat is fully open
+  const showButton = phase !== 'open';
+  // Chat panel is visible once the hinge starts opening, through full close
+  const showModal  = phase !== 'closed' && phase !== 'shaking';
 
   return (
     <>
@@ -265,23 +271,27 @@ export function ChatModal({ pageContext }: Props) {
           onClick={handleOpen}
           disabled={phase !== 'closed'}
           aria-label="Open AI chat"
-          className={`fixed bottom-5 right-5 z-50 w-14 h-14 rounded-full shadow-xl focus:outline-none
-            ${phase === 'closed' ? 'pokeball-idle hover:scale-110 active:scale-95 transition-transform duration-150' : ''}
-          `}
+          className={[
+            'fixed bottom-5 right-5 z-50 w-14 h-14 bg-transparent p-0 rounded-full focus:outline-none',
+            phase === 'closed'  ? 'pokeball-idle hover:scale-110 active:scale-95 transition-transform duration-150' : '',
+            phase === 'shaking' ? 'pokeball-shaking' : '',
+            phase === 'opening' ? 'pokeball-exiting' : '',
+            phase === 'closing' ? 'pokeball-entering' : '',
+          ].join(' ')}
         >
           <svg viewBox="0 0 60 60" width="56" height="56" aria-hidden="true">
-            {/* Pokeball interior (visible when top lifts) */}
-            <circle cx="30" cy="30" r="27" fill="#f0f0f0" />
+            {/* Interior fill — revealed when top hinge opens */}
+            <circle cx="30" cy="30" r="27" fill="#e8e8e8" />
 
             {/* Bottom half — white */}
             <path d="M 3,30 A 27,27 0 0,0 57,30 Z" fill="white" />
 
-            {/* Top half — red, animates on open/close */}
+            {/* Top half — red, 3D hinge animates on open/close */}
             <g
               style={{ transformOrigin: '30px 30px' }}
               className={
-                phase === 'opening' ? 'pokeball-top-opening' :
-                phase === 'closing' ? 'pokeball-top-closing' : ''
+                phase === 'opening' ? 'pokeball-top-hinge-opening' :
+                phase === 'closing' ? 'pokeball-top-hinge-closing' : ''
               }
             >
               <path d="M 3,30 A 27,27 0 0,1 57,30 Z" fill="#CC0000" />
@@ -299,7 +309,7 @@ export function ChatModal({ pageContext }: Props) {
             {/* Button inner highlight */}
             <circle cx="27.5" cy="27.5" r="2" fill="rgba(255,255,255,0.55)" />
 
-            {/* White flash overlay — fires on opening */}
+            {/* White flash burst — fires as hinge opens */}
             {phase === 'opening' && (
               <circle
                 cx="30" cy="30" r="27"

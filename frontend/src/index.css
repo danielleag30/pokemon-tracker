@@ -34,7 +34,7 @@
 
 /* ── Pokeball chat button animations ─────────────────────────────────────── */
 
-/* Periodic twitch — idles for most of the cycle, then wiggles */
+/* Idle twitch — mostly still, occasional wiggle like something's inside */
 @keyframes pokeball-twitch {
   0%, 82%, 100% { transform: rotate(0deg); }
   84%  { transform: rotate(-17deg); }
@@ -47,61 +47,103 @@
   98%  { transform: rotate(3deg); }
 }
 
-/* Top half of pokeball lifts up on open */
-@keyframes pokeball-top-open {
-  0%   { transform: translateY(0px)   rotate(0deg);   opacity: 1; }
-  100% { transform: translateY(-22px) rotate(-18deg); opacity: 0.7; }
+/* Vigorous shake on click — before opening */
+@keyframes pokeball-shake {
+  0%, 100% { transform: rotate(0deg) translateX(0); }
+  10%  { transform: rotate(-24deg) translateX(-3px); }
+  22%  { transform: rotate(24deg)  translateX(3px); }
+  34%  { transform: rotate(-24deg) translateX(-3px); }
+  46%  { transform: rotate(24deg)  translateX(3px); }
+  58%  { transform: rotate(-15deg) translateX(-2px); }
+  70%  { transform: rotate(15deg)  translateX(2px); }
+  82%  { transform: rotate(-7deg); }
+  91%  { transform: rotate(7deg); }
+  97%  { transform: rotate(-2deg); }
 }
 
-/* Top half returns on close */
-@keyframes pokeball-top-close {
-  0%   { transform: translateY(-22px) rotate(-18deg); opacity: 0.7; }
-  100% { transform: translateY(0px)   rotate(0deg);   opacity: 1; }
+/* Top half hinges open — rotates backward around the seam (3D perspective) */
+@keyframes pokeball-top-hinge-open {
+  0%   { transform: perspective(280px) rotateX(0deg); }
+  100% { transform: perspective(280px) rotateX(-162deg); }
 }
 
-/* White flash burst when pokeball opens */
+/* Top half hinges shut */
+@keyframes pokeball-top-hinge-close {
+  0%   { transform: perspective(280px) rotateX(-162deg); }
+  100% { transform: perspective(280px) rotateX(0deg); }
+}
+
+/* Pokeball slides down and off screen after chat opens */
+@keyframes pokeball-exit {
+  0%   { transform: translateY(0);    opacity: 1; }
+  40%  { opacity: 1; }
+  100% { transform: translateY(110px); opacity: 0; }
+}
+
+/* Pokeball slides back up from bottom on close */
+@keyframes pokeball-enter {
+  0%   { transform: translateY(110px); opacity: 0; }
+  100% { transform: translateY(0);     opacity: 1; }
+}
+
+/* Flash burst when pokeball opens */
 @keyframes pokeball-flash {
   0%, 100% { opacity: 0; }
-  30%, 60%  { opacity: 1; }
+  25%, 65%  { opacity: 0.9; }
 }
 
-/* Chat panel pops out (spring: slight overshoot then settle) */
+/* Chat panel pops out from the pokeball with spring overshoot */
 @keyframes chat-appear {
   0%   { transform: scale(0.04); opacity: 0; }
-  60%  { transform: scale(1.04); opacity: 1; }
-  80%  { transform: scale(0.98); }
+  55%  { transform: scale(1.05); opacity: 1; }
+  78%  { transform: scale(0.97); }
   100% { transform: scale(1);    opacity: 1; }
 }
 
-/* Chat panel gets pulled back in */
+/* Chat shrinks back toward pokeball */
 @keyframes chat-disappear {
   0%   { transform: scale(1);    opacity: 1; }
-  30%  { transform: scale(1.03); opacity: 1; }
   100% { transform: scale(0.04); opacity: 0; }
 }
 
-/* ── Apply animation classes ──────────────────────────────────────────────── */
+/* ── Animation classes ────────────────────────────────────────────────────── */
 
 .pokeball-idle {
   animation: pokeball-twitch 5s ease-in-out infinite;
 }
 
-.pokeball-top-opening {
-  animation: pokeball-top-open 0.22s ease-out forwards;
+.pokeball-shaking {
+  animation: pokeball-shake 0.65s ease-in-out forwards;
 }
 
-.pokeball-top-closing {
-  animation: pokeball-top-close 0.28s ease-out forwards;
+/* Top hinge — opening: starts immediately when phase='opening' */
+.pokeball-top-hinge-opening {
+  animation: pokeball-top-hinge-open 0.38s ease-in forwards;
+}
+
+/* Top hinge — closing: starts after the ball has entered from bottom */
+.pokeball-top-hinge-closing {
+  animation: pokeball-top-hinge-close 0.32s ease-out 0.24s both;
+}
+
+/* Whole button exits downward (slight delay so chat can pop first) */
+.pokeball-exiting {
+  animation: pokeball-exit 0.32s ease-in 0.18s forwards;
+}
+
+/* Whole button enters from bottom */
+.pokeball-entering {
+  animation: pokeball-enter 0.22s ease-out forwards;
 }
 
 .pokeball-flash-anim {
-  animation: pokeball-flash 0.25s ease-out forwards;
-  animation-delay: 0.1s;
+  animation: pokeball-flash 0.28s ease-out 0.08s forwards;
+  opacity: 0;
 }
 
 .chat-entering {
   transform-origin: bottom right;
-  animation: chat-appear 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: chat-appear 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
 .chat-exiting {
