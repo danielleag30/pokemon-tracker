@@ -226,7 +226,7 @@ Deno.serve(async (req) => {
         ownedIds.length > 0
           ? userClient.rpc('match_owned_cards', { query_embedding: queryEmbedding, owned_card_ids: ownedIds, ...(cap ? { match_count: cap } : {}) })
           : Promise.resolve({ data: [] }),
-        userClient.rpc('match_cards', { query_embedding: queryEmbedding, match_count: cap ?? 10 }),
+        userClient.rpc('match_cards', { query_embedding: queryEmbedding, ...(cap ? { match_count: cap } : {}) }),
       ]);
       const seen = new Set<string>();
       for (const c of [...(ownedMatches.data ?? []), ...(globalMatches.data ?? [])]) {
@@ -267,28 +267,25 @@ Deno.serve(async (req) => {
 
     } else if (intent.type === 'filter_type') {
       const { data } = await userClient.rpc('collection_by_filter', {
-        owned_card_ids: ownedIds, p_type: intent.filterType ?? null, p_limit: 25,
+        owned_card_ids: ownedIds, p_type: intent.filterType ?? null, p_limit: resultCap() ?? 9999,
       });
       (data ?? []).forEach((c: CardRow) => contextLines.push(formatCard(c, ownedMap)));
-      if ((data?.length ?? 0) === 25) limitWarning = 'Showing top 25 by market price; you may own more.';
 
     } else if (intent.type === 'filter_supertype') {
       const { data } = await userClient.rpc('collection_by_filter', {
-        owned_card_ids: ownedIds, p_supertype: intent.filterSupertype ?? null, p_limit: 25,
+        owned_card_ids: ownedIds, p_supertype: intent.filterSupertype ?? null, p_limit: resultCap() ?? 9999,
       });
       (data ?? []).forEach((c: CardRow) => contextLines.push(formatCard(c, ownedMap)));
-      if ((data?.length ?? 0) === 25) limitWarning = 'Showing first 25; you may own more.';
 
     } else if (intent.type === 'filter_subtype') {
       const { data } = await userClient.rpc('collection_by_filter', {
-        owned_card_ids: ownedIds, p_subtype: intent.filterSubtype ?? null, p_limit: 25,
+        owned_card_ids: ownedIds, p_subtype: intent.filterSubtype ?? null, p_limit: resultCap() ?? 9999,
       });
       (data ?? []).forEach((c: CardRow) => contextLines.push(formatCard(c, ownedMap)));
-      if ((data?.length ?? 0) === 25) limitWarning = 'Showing first 25; you may own more.';
 
     } else if (intent.type === 'filter_rarity') {
       const { data } = await userClient.rpc('collection_by_filter', {
-        owned_card_ids: ownedIds, p_limit: 25,
+        owned_card_ids: ownedIds, p_limit: resultCap() ?? 9999,
       });
       contextLines.push('Your cards sorted by market price (highest first):');
       (data ?? []).forEach((c: CardRow) => contextLines.push(formatCard(c, ownedMap)));
@@ -319,7 +316,7 @@ Deno.serve(async (req) => {
 
     } else {
       // General: global vector search only
-      const { data } = await userClient.rpc('match_cards', { query_embedding: queryEmbedding, match_count: resultCap() ?? 25 });
+      const { data } = await userClient.rpc('match_cards', { query_embedding: queryEmbedding, ...(resultCap() ? { match_count: resultCap() } : {}) });
       (data ?? []).forEach((c: CardRow) => contextLines.push(formatCard(c, ownedMap)));
     }
 
@@ -342,7 +339,7 @@ ${limitWarning ? `⚠️ Data note: ${limitWarning}` : ''}
 
 Instructions:
 - Reference specific cards using their ID in brackets, e.g. [base1-4].
-- If the data shown is capped or partial, say so — e.g. "I can see 25 of your fire-type cards but you may own more."
+- If for any reason data appears incomplete, say so honestly.
 - Prices shown are last-synced market prices, not live. Say so if asked about current value.
 - If a question requires data you do not have (live prices, other users' collections, price trends), say so clearly rather than guessing.
 - Keep responses concise and friendly.`;

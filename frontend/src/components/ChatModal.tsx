@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { MessageCircle, X, Send, Mic, MicOff, Camera, Loader2, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { X, Send, Mic, MicOff, Camera, Loader2, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { chatApi, cardsApi } from '../utils/api';
 import type { ChatMessage, ChatPageContext, TCGCard } from '../types';
 
@@ -10,8 +10,10 @@ interface Props {
   pageContext?: ChatPageContext;
 }
 
+type Phase = 'closed' | 'opening' | 'open' | 'closing';
+
 export function ChatModal({ pageContext }: Props) {
-  const [open, setOpen]           = useState(false);
+  const [phase, setPhase]         = useState<Phase>('closed');
   const [messages, setMessages]   = useState<ChatMessage[]>([]);
   const [input, setInput]         = useState('');
   const [loading, setLoading]     = useState(false);
@@ -28,6 +30,25 @@ export function ChatModal({ pageContext }: Props) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
+
+  const handleOpen = useCallback(() => {
+    if (phase !== 'closed') return;
+    setPhase('opening');
+    setTimeout(() => setPhase('open'), 400);
+  }, [phase]);
+
+  const handleClose = useCallback(() => {
+    if (phase !== 'open') return;
+    setPhase('closing');
+    setTimeout(() => setPhase('closed'), 350);
+  }, [phase]);
+
+  // Focus input once the modal is fully open
+  useEffect(() => {
+    if (phase === 'open') {
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  }, [phase]);
 
   const fetchCards = useCallback(async (cardIds: string[]) => {
     const missing = cardIds.filter(id => !cardCache[id]);
@@ -233,27 +254,85 @@ export function ChatModal({ pageContext }: Props) {
     );
   };
 
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        className="fixed bottom-5 right-5 z-50 w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95"
-        aria-label="Open AI chat"
-      >
-        <MessageCircle size={24} />
-      </button>
-    );
-  }
+  const showButton = phase === 'closed' || phase === 'opening' || phase === 'closing';
+  const showModal  = phase === 'open'   || phase === 'opening' || phase === 'closing';
 
   return (
-    <div className="fixed bottom-5 right-5 z-50 flex flex-col w-[360px] max-w-[calc(100vw-2rem)] h-[540px] max-h-[calc(100vh-6rem)] bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
+    <>
+      {/* ── Pokeball button ─────────────────────────────────────────────── */}
+      {showButton && (
+        <button
+          onClick={handleOpen}
+          disabled={phase !== 'closed'}
+          aria-label="Open AI chat"
+          className={`fixed bottom-5 right-5 z-50 w-14 h-14 rounded-full shadow-xl focus:outline-none
+            ${phase === 'closed' ? 'pokeball-idle hover:scale-110 active:scale-95 transition-transform duration-150' : ''}
+          `}
+        >
+          <svg viewBox="0 0 60 60" width="56" height="56" aria-hidden="true">
+            {/* Pokeball interior (visible when top lifts) */}
+            <circle cx="30" cy="30" r="27" fill="#f0f0f0" />
+
+            {/* Bottom half — white */}
+            <path d="M 3,30 A 27,27 0 0,0 57,30 Z" fill="white" />
+
+            {/* Top half — red, animates on open/close */}
+            <g
+              style={{ transformOrigin: '30px 30px' }}
+              className={
+                phase === 'opening' ? 'pokeball-top-opening' :
+                phase === 'closing' ? 'pokeball-top-closing' : ''
+              }
+            >
+              <path d="M 3,30 A 27,27 0 0,1 57,30 Z" fill="#CC0000" />
+            </g>
+
+            {/* Outer ring */}
+            <circle cx="30" cy="30" r="27" fill="none" stroke="#111" strokeWidth="2.5" />
+
+            {/* Center band */}
+            <rect x="3" y="27" width="54" height="6" fill="#111" />
+
+            {/* Center button */}
+            <circle cx="30" cy="30" r="8" fill="white" stroke="#111" strokeWidth="2.5" />
+
+            {/* Button inner highlight */}
+            <circle cx="27.5" cy="27.5" r="2" fill="rgba(255,255,255,0.55)" />
+
+            {/* White flash overlay — fires on opening */}
+            {phase === 'opening' && (
+              <circle
+                cx="30" cy="30" r="27"
+                fill="white"
+                className="pokeball-flash-anim"
+                style={{ opacity: 0 }}
+              />
+            )}
+          </svg>
+        </button>
+      )}
+
+      {/* ── Chat panel ──────────────────────────────────────────────────── */}
+      {showModal && (
+        <div
+          className={`fixed bottom-5 right-5 z-[51] flex flex-col w-[360px] max-w-[calc(100vw-2rem)] h-[540px] max-h-[calc(100vh-6rem)] bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden
+            ${phase === 'opening' ? 'chat-entering' : ''}
+            ${phase === 'closing' ? 'chat-exiting'  : ''}
+          `}
+        >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-blue-600 text-white flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <MessageCircle size={18} />
+      <div className="flex items-center justify-between px-4 py-3 bg-red-600 text-white flex-shrink-0">
+        <div className="flex items-center gap-3">
+          {/* Mini pokeball in header */}
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+            <circle cx="12" cy="12" r="11" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5"/>
+            <path d="M 1,12 A 11,11 0 0,1 23,12 Z" fill="rgba(255,255,255,0.25)"/>
+            <rect x="1" y="10.5" width="22" height="3" fill="rgba(255,255,255,0.4)"/>
+            <circle cx="12" cy="12" r="3.5" fill="white" stroke="rgba(255,255,255,0.6)" strokeWidth="1"/>
+          </svg>
           <span className="font-semibold text-sm">Pokédex AI</span>
         </div>
-        <button onClick={() => setOpen(false)} className="hover:bg-blue-500 rounded-lg p-1 transition-colors" aria-label="Close">
+        <button onClick={handleClose} className="hover:bg-red-500 rounded-lg p-1 transition-colors" aria-label="Close">
           <X size={18} />
         </button>
       </div>
@@ -322,6 +401,8 @@ export function ChatModal({ pageContext }: Props) {
           <Send size={18} />
         </button>
       </form>
-    </div>
+        </div>
+      )}
+    </>
   );
 }

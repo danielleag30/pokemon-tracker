@@ -7,7 +7,7 @@ import { useCollectionMap } from '../hooks/useCollection';
 import { ProgressBar } from '../components/ProgressBar';
 import { CardGrid } from '../components/CardGrid';
 import { SearchBar } from '../components/SearchBar';
-import { REGIONS, SERIES_TO_REGION } from '../utils/constants';
+import { REGIONS, SERIES_TO_REGION, POKEMON_TYPES, TYPE_DISPLAY_NAMES } from '../utils/constants';
 import { cardsApi } from '../utils/api';
 import type { TCGSet, TCGCard } from '../types';
 
@@ -23,10 +23,12 @@ export function ByRegion() {
   const [selectedSet, setSelectedSet] = useState<TCGSet | null>(null);
   const [setSearch, setSetSearch] = useState('');
 
-  // layer 2.5 — see all cards in region (no set selected)
-  const [showAll, setShowAll] = useState(false);
+  // layer 2.5 — see all cards in region (default when a region is selected)
+  const [showAll, setShowAll] = useState(!!regionId);
   const [allCardSearch, setAllCardSearch] = useState('');
   const [allFilter, setAllFilter] = useState<'all' | 'owned' | 'missing'>('all');
+  const [allTypeFilter, setAllTypeFilter] = useState<string>('');
+  const [allSetFilter, setAllSetFilter] = useState<string>('');
 
   // honour ?all=1 from Dashboard link
   useEffect(() => {
@@ -91,9 +93,11 @@ export function ByRegion() {
       const matchSearch = !allCardSearch || c.name.toLowerCase().includes(allCardSearch.toLowerCase()) || c.number.includes(allCardSearch);
       const owned = collectionMap.has(c.id);
       const matchFilter = allFilter === 'all' || (allFilter === 'owned' && owned) || (allFilter === 'missing' && !owned);
-      return matchSearch && matchFilter;
+      const matchType = !allTypeFilter || c.types?.includes(allTypeFilter);
+      const matchSet = !allSetFilter || c.set.id === allSetFilter;
+      return matchSearch && matchFilter && matchType && matchSet;
     });
-  }, [allRegionCards, allCardSearch, allFilter, collectionMap]);
+  }, [allRegionCards, allCardSearch, allFilter, allTypeFilter, allSetFilter, collectionMap]);
 
   // ── Layer 1: Region selector ──────────────────────────────────────────────
   if (!regionId) {
@@ -146,14 +150,14 @@ export function ByRegion() {
     );
   }
 
-  // ── Layer 2.5: See All cards in region ───────────────────────────────────
+  // ── Layer 2.5: All cards in region (default view when region is selected) ─
   if (regionId && showAll) {
     const ownedTotal = allRegionCards.filter((c) => collectionMap.has(c.id)).length;
     return (
       <div className="space-y-4 animate-fade-in">
         <div className="flex items-center gap-3 flex-wrap">
           <button
-            onClick={() => { setShowAll(false); setAllCardSearch(''); setAllFilter('all'); }}
+            onClick={() => navigate('/region')}
             className="text-gray-400 hover:text-gray-600 transition-colors"
           >
             <ChevronLeft size={20} />
@@ -162,6 +166,12 @@ export function ByRegion() {
             <h1 className="text-xl font-black text-gray-900">{region?.emoji} All {region?.name} Cards</h1>
             <p className="text-xs text-gray-400">{allRegionCards.length} total · {ownedTotal} owned</p>
           </div>
+          <button
+            onClick={() => { setShowAll(false); setAllCardSearch(''); setAllTypeFilter(''); setAllSetFilter(''); setAllFilter('all'); }}
+            className="text-xs font-semibold px-3 py-1.5 rounded-xl border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 transition-colors"
+          >
+            Browse Sets
+          </button>
         </div>
 
         {!allRegionLoading && allRegionCards.length > 0 && (
@@ -170,11 +180,12 @@ export function ByRegion() {
           </div>
         )}
 
+        {/* Search + owned filter row */}
         <div className="flex gap-3 flex-wrap">
           <div className="flex-1 min-w-48">
             <SearchBar value={allCardSearch} onChange={setAllCardSearch} placeholder="Search by name or number…" />
           </div>
-          <div className="flex rounded-xl overflow-hidden border border-gray-200 bg-white shadow-sm">
+          <div className="flex rounded-xl overflow-hidden border border-gray-200 bg-white shadow-sm shrink-0">
             {(['all', 'owned', 'missing'] as const).map((f) => (
               <button
                 key={f}
@@ -185,6 +196,41 @@ export function ByRegion() {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Type + set filter row */}
+        <div className="flex gap-3 flex-wrap items-center">
+          <div className="flex flex-wrap gap-1.5 flex-1">
+            <button
+              onClick={() => setAllTypeFilter('')}
+              className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${!allTypeFilter ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+            >
+              All Types
+            </button>
+            {POKEMON_TYPES.map((t) => (
+              <button
+                key={t}
+                onClick={() => setAllTypeFilter(allTypeFilter === t ? '' : t)}
+                className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${allTypeFilter === t ? 'ring-2 ring-offset-1 opacity-100' : 'opacity-70 hover:opacity-100'}`}
+                style={{
+                  backgroundColor: allTypeFilter === t ? '#3B4CCA' : '#e5e7eb',
+                  color: allTypeFilter === t ? '#fff' : '#555',
+                }}
+              >
+                {TYPE_DISPLAY_NAMES[t] ?? t}
+              </button>
+            ))}
+          </div>
+          <select
+            value={allSetFilter}
+            onChange={(e) => setAllSetFilter(e.target.value)}
+            className="border border-gray-200 rounded-xl px-3 py-2 text-xs text-gray-600 bg-white focus:outline-none focus:ring-2 focus:ring-pokemon-blue/30 shrink-0"
+          >
+            <option value="">All Sets</option>
+            {regionSets.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
         </div>
 
         {allRegionLoading ? (
@@ -226,7 +272,7 @@ export function ByRegion() {
             className="text-sm font-semibold px-4 py-2 rounded-xl transition-colors text-white"
             style={{ backgroundColor: region?.color ?? '#3B4CCA' }}
           >
-            See All Cards →
+            ← All Cards
           </button>
         </div>
 

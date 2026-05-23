@@ -6,7 +6,7 @@ import { TypeBadge } from '../components/TypeBadge';
 import { CardGrid } from '../components/CardGrid';
 import { SearchBar } from '../components/SearchBar';
 import { ProgressBar } from '../components/ProgressBar';
-import { POKEMON_TYPES, TYPE_COLORS, TYPE_DISPLAY_NAMES } from '../utils/constants';
+import { POKEMON_TYPES, TYPE_COLORS, TYPE_DISPLAY_NAMES, REGIONS, SERIES_TO_REGION } from '../utils/constants';
 
 export function ByType() {
   const [selectedType, setSelectedType] = useState<string | null>(null);
@@ -14,14 +14,15 @@ export function ByType() {
   const [cardSearch, setCardSearch] = useState('');   // layer 2: search within type
   const [browseSetId, setBrowseSetId] = useState('');
   const [filter, setFilter] = useState<'all' | 'owned' | 'missing'>('all');
+  const [regionFilter, setRegionFilter] = useState<string>('');
 
   const collectionMap = useCollectionMap();
   const { data: setsData } = useSets();
   const { data: setCardsData, isLoading: cardsLoading } = useSetCards(browseSetId || null);
 
-  // Cross-set search: fires when a type is selected + user types a card name
-  const crossQuery = selectedType && cardSearch.length >= 2
-    ? `types:${selectedType} name:${cardSearch}`
+  // Cross-set search: fires as soon as a type is selected; narrows when name is typed
+  const crossQuery = selectedType
+    ? `types:${selectedType}${cardSearch.length >= 2 ? ` name:${cardSearch}` : ''}`
     : '';
   const { data: crossResults, isFetching: crossLoading } = useCardSearch(crossQuery, !!crossQuery);
 
@@ -49,13 +50,15 @@ export function ByType() {
   const ownedInSet = setCards.filter((c) => c.types?.includes(selectedType ?? '') && collectionMap.has(c.id)).length;
   const totalInSet = setCards.filter((c) => c.types?.includes(selectedType ?? '')).length;
 
-  // Cross-set results filtered by owned/missing
+  // Cross-set results filtered by owned/missing + region
   const crossCards = (crossResults?.data ?? []).filter((c) => {
     const owned = collectionMap.has(c.id);
-    return filter === 'all' || (filter === 'owned' && owned) || (filter === 'missing' && !owned);
+    const matchFilter = filter === 'all' || (filter === 'owned' && owned) || (filter === 'missing' && !owned);
+    const matchRegion = !regionFilter || SERIES_TO_REGION[c.set.series] === regionFilter;
+    return matchFilter && matchRegion;
   });
 
-  const showCrossSearch = !!crossQuery;
+  const showCrossSearch = !!selectedType;
   const showSetBrowse = selectedType && !cardSearch;
 
   return (
@@ -64,7 +67,7 @@ export function ByType() {
         <h1 className="text-2xl font-black text-gray-900">Browse by Type</h1>
         <p className="text-sm text-gray-500 mt-0.5">
           {selectedType
-            ? `Showing ${TYPE_DISPLAY_NAMES[selectedType] ?? selectedType} cards — search by name or pick a set`
+            ? `Showing ${TYPE_DISPLAY_NAMES[selectedType] ?? selectedType} cards — filter by region, search by name, or pick a set`
             : 'Select a type to explore cards'}
         </p>
       </div>
@@ -89,7 +92,7 @@ export function ByType() {
             return (
               <button
                 key={type}
-                onClick={() => { setSelectedType(isSelected ? null : type); setCardSearch(''); setBrowseSetId(''); }}
+                onClick={() => { setSelectedType(isSelected ? null : type); setCardSearch(''); setBrowseSetId(''); setRegionFilter(''); }}
                 className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all hover:scale-105 ${
                   isSelected ? 'scale-105 shadow-md' : 'opacity-80 hover:opacity-100'
                 }`}
@@ -121,6 +124,16 @@ export function ByType() {
                 placeholder={`Search ${TYPE_DISPLAY_NAMES[selectedType] ?? selectedType} cards by name across all sets…`}
               />
             </div>
+            <select
+              value={regionFilter}
+              onChange={(e) => setRegionFilter(e.target.value)}
+              className="border border-gray-200 rounded-xl px-3 py-2 text-xs text-gray-600 bg-white focus:outline-none focus:ring-2 focus:ring-pokemon-blue/30 shrink-0"
+            >
+              <option value="">All Regions</option>
+              {REGIONS.map((r) => (
+                <option key={r.id} value={r.id}>{r.emoji} {r.name}</option>
+              ))}
+            </select>
             <div className="flex rounded-xl overflow-hidden border border-gray-200 bg-white shadow-sm shrink-0">
               {(['all', 'owned', 'missing'] as const).map((f) => (
                 <button
@@ -136,25 +149,28 @@ export function ByType() {
             </div>
           </div>
 
-          {/* Cross-set search results */}
+          {/* Cross-set results — loads on type select, narrows on name search */}
           {showCrossSearch && (
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <TypeBadge type={selectedType} size="md" />
                 <p className="text-xs text-gray-500 font-medium">
-                  Cross-set results for "{cardSearch}"
+                  {cardSearch.length >= 2
+                    ? `Results for "${cardSearch}"`
+                    : `All ${TYPE_DISPLAY_NAMES[selectedType] ?? selectedType} cards`}
+                  {regionFilter ? ` · ${REGIONS.find((r) => r.id === regionFilter)?.name}` : ''}
                 </p>
               </div>
               {crossLoading ? (
                 <div className="flex items-center gap-2 text-gray-500 py-8 justify-center">
-                  <Loader size={18} className="animate-spin" /> Searching all sets…
+                  <Loader size={18} className="animate-spin" /> Loading…
                 </div>
               ) : (
                 <CardGrid
                   cards={crossCards}
                   collectionMap={collectionMap}
                   binderTags={binderTags}
-                  emptyMessage={`No ${TYPE_DISPLAY_NAMES[selectedType] ?? selectedType} cards named "${cardSearch}" found.`}
+                  emptyMessage={`No ${TYPE_DISPLAY_NAMES[selectedType] ?? selectedType} cards found${cardSearch ? ` named "${cardSearch}"` : ''}${regionFilter ? ` in ${REGIONS.find((r) => r.id === regionFilter)?.name}` : ''}.`}
                 />
               )}
             </div>

@@ -32,6 +32,83 @@
   }
 }
 
+/* ── Pokeball chat button animations ─────────────────────────────────────── */
+
+/* Periodic twitch — idles for most of the cycle, then wiggles */
+@keyframes pokeball-twitch {
+  0%, 82%, 100% { transform: rotate(0deg); }
+  84%  { transform: rotate(-17deg); }
+  86%  { transform: rotate(17deg); }
+  88%  { transform: rotate(-12deg); }
+  90%  { transform: rotate(12deg); }
+  92%  { transform: rotate(-7deg); }
+  94%  { transform: rotate(7deg); }
+  96%  { transform: rotate(-3deg); }
+  98%  { transform: rotate(3deg); }
+}
+
+/* Top half of pokeball lifts up on open */
+@keyframes pokeball-top-open {
+  0%   { transform: translateY(0px)   rotate(0deg);   opacity: 1; }
+  100% { transform: translateY(-22px) rotate(-18deg); opacity: 0.7; }
+}
+
+/* Top half returns on close */
+@keyframes pokeball-top-close {
+  0%   { transform: translateY(-22px) rotate(-18deg); opacity: 0.7; }
+  100% { transform: translateY(0px)   rotate(0deg);   opacity: 1; }
+}
+
+/* White flash burst when pokeball opens */
+@keyframes pokeball-flash {
+  0%, 100% { opacity: 0; }
+  30%, 60%  { opacity: 1; }
+}
+
+/* Chat panel pops out (spring: slight overshoot then settle) */
+@keyframes chat-appear {
+  0%   { transform: scale(0.04); opacity: 0; }
+  60%  { transform: scale(1.04); opacity: 1; }
+  80%  { transform: scale(0.98); }
+  100% { transform: scale(1);    opacity: 1; }
+}
+
+/* Chat panel gets pulled back in */
+@keyframes chat-disappear {
+  0%   { transform: scale(1);    opacity: 1; }
+  30%  { transform: scale(1.03); opacity: 1; }
+  100% { transform: scale(0.04); opacity: 0; }
+}
+
+/* ── Apply animation classes ──────────────────────────────────────────────── */
+
+.pokeball-idle {
+  animation: pokeball-twitch 5s ease-in-out infinite;
+}
+
+.pokeball-top-opening {
+  animation: pokeball-top-open 0.22s ease-out forwards;
+}
+
+.pokeball-top-closing {
+  animation: pokeball-top-close 0.28s ease-out forwards;
+}
+
+.pokeball-flash-anim {
+  animation: pokeball-flash 0.25s ease-out forwards;
+  animation-delay: 0.1s;
+}
+
+.chat-entering {
+  transform-origin: bottom right;
+  animation: chat-appear 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.chat-exiting {
+  transform-origin: bottom right;
+  animation: chat-disappear 0.28s ease-in forwards;
+}
+
 @media print {
   nav,
   aside,
