@@ -5,7 +5,7 @@ import { useCollection, useCollectionStats, useRemoveCard } from '../hooks/useCo
 import { cardsApi } from '../utils/api';
 import { getMarketPrice, formatPrice, getDefaultTier } from '../utils/prices';
 import { CardLightbox } from '../components/CardLightbox';
-import { SERIES_TO_REGION, STARTER_LINES, TYPE_DISPLAY_NAMES, REGIONS } from '../utils/constants';
+import { STARTER_LINES, TYPE_DISPLAY_NAMES, REGIONS } from '../utils/constants';
 import { FOIL_LABELS, FOIL_PRIORITY, type FoilType } from '../types';
 import type { TCGCard, CollectionEntry } from '../types';
 
@@ -110,11 +110,9 @@ export function MyCards() {
           break;
         }
         case 'series': {
-          const seriesId = SERIES_TO_REGION[item.card.set.series] ?? 'other';
-          const region = REGIONS.find((r) => r.id === seriesId);
-          key = seriesId;
-          label = region?.name ?? 'Other';
-          emoji = region?.emoji;
+          key = item.card.set.series ?? 'Other';
+          label = item.card.set.series ?? 'Other';
+          emoji = REGIONS.find((r) => r.series.includes(item.card.set.series))?.emoji;
           break;
         }
         case 'type': {
@@ -177,11 +175,11 @@ export function MyCards() {
         return bDate.localeCompare(aDate);
       });
     } else if (groupBy === 'series') {
-      const seriesOrder: string[] = REGIONS.map((r) => r.id);
+      // Sort by the earliest card release date within each series group
       result.sort((a, b) => {
-        const ai = seriesOrder.indexOf(a.key);
-        const bi = seriesOrder.indexOf(b.key);
-        return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+        const aDate = a.cards[0]?.card.set.releaseDate ?? '';
+        const bDate = b.cards[0]?.card.set.releaseDate ?? '';
+        return aDate.localeCompare(bDate);
       });
     } else if (groupBy === 'evolution') {
       result.sort((a, b) => {
