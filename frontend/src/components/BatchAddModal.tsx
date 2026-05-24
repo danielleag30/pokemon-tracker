@@ -11,6 +11,7 @@ import { cardsApi } from '../utils/api';
 import type { TCGCard } from '../types';
 
 type Mode = 'set' | 'series' | 'type' | 'search';
+type SortOrder = 'number' | 'alpha';
 
 const SUBTYPE_KEYWORDS = ['GX', 'EX', 'V', 'VMAX', 'VSTAR', 'BREAK', 'Mega', 'LEGEND', 'Radiant', 'Prism Star'];
 const TYPE_KEYWORDS = ['Fire', 'Water', 'Grass', 'Lightning', 'Psychic', 'Fighting', 'Darkness', 'Metal', 'Dragon', 'Fairy', 'Colorless'];
@@ -43,6 +44,7 @@ export function BatchAddModal({ onClose }: Props) {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selected, setSelected] = useState<Map<string, FoilType | null>>(new Map());
   const [binderTag, setBinderTag] = useState('');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('number');
 
   const { data: setsData, isLoading: setsLoading } = useSets();
   const { data: setCardsData, isLoading: setCardsLoading } = useSetCards(selectedSet || null);
@@ -91,17 +93,28 @@ export function BatchAddModal({ onClose }: Props) {
   const searchResults: TCGCard[] = searchData?.data ?? [];
   const typeResults: TCGCard[] = typeData?.data ?? [];
 
-  // Cards shown in the active mode, filtered by name
+  // Cards shown in the active mode, filtered by name then sorted
   const activeCards = useMemo(() => {
     let base: TCGCard[] = [];
     if (mode === 'set') base = allSetCards;
     else if (mode === 'series') base = seriesCards;
     else if (mode === 'type') base = typeResults;
     else base = searchResults;
-    if (!cardFilter) return base;
-    const f = cardFilter.toLowerCase();
-    return base.filter((c) => c.name.toLowerCase().includes(f) || c.number.includes(cardFilter));
-  }, [mode, allSetCards, seriesCards, typeResults, searchResults, cardFilter]);
+    const filtered = cardFilter
+      ? (() => { const f = cardFilter.toLowerCase(); return base.filter((c) => c.name.toLowerCase().includes(f) || c.number.includes(cardFilter)); })()
+      : base;
+    if (sortOrder === 'alpha') {
+      return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return [...filtered].sort((a, b) => {
+      const aNum = a.number || '';
+      const bNum = b.number || '';
+      if (!aNum && !bNum) return 0;
+      if (!aNum) return -1;
+      if (!bNum) return 1;
+      return aNum.localeCompare(bNum, undefined, { numeric: true });
+    });
+  }, [mode, allSetCards, seriesCards, typeResults, searchResults, cardFilter, sortOrder]);
 
   const pokemonCards = activeCards.filter((c) => c.supertype === 'Pokémon');
 
@@ -358,7 +371,23 @@ export function BatchAddModal({ onClose }: Props) {
                 <ProgressBar value={ownedCount} max={activeCards.length} color="#22c55e" showPercent />
               )}
               {mode === 'search' && (
-                <span className="text-xs text-gray-500">{searchResults.length} result{searchResults.length !== 1 ? 's' : ''}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">{searchResults.length} result{searchResults.length !== 1 ? 's' : ''}</span>
+                  <div className="flex gap-1">
+                    {(['number', 'alpha'] as SortOrder[]).map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => setSortOrder(s)}
+                        title={s === 'number' ? 'Sort by card number' : 'Sort alphabetically'}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                          sortOrder === s ? 'bg-pokemon-blue text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                        }`}
+                      >
+                        {s === 'number' ? '#' : 'A–Z'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
               <div className="flex gap-2 shrink-0">
                 {mode !== 'search' && (
@@ -376,17 +405,33 @@ export function BatchAddModal({ onClose }: Props) {
             </div>
           )}
 
-          {/* Card filter (set + series + type modes) */}
+          {/* Card filter + sort (set + series + type modes) */}
           {(mode === 'set' && selectedSet) || (mode === 'series' && selectedSeries && seriesCards.length > 0) || (mode === 'type' && selectedType && typeResults.length > 0) ? (
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                value={cardFilter}
-                onChange={(e) => setCardFilter(e.target.value)}
-                placeholder="Filter cards…"
-                className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pokemon-blue/30"
-              />
+            <div className="flex gap-2 items-center">
+              <div className="relative flex-1">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={cardFilter}
+                  onChange={(e) => setCardFilter(e.target.value)}
+                  placeholder="Filter cards…"
+                  className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pokemon-blue/30"
+                />
+              </div>
+              <div className="flex gap-1 shrink-0">
+                {(['number', 'alpha'] as SortOrder[]).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setSortOrder(s)}
+                    title={s === 'number' ? 'Sort by card number' : 'Sort alphabetically'}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                      sortOrder === s ? 'bg-pokemon-blue text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    }`}
+                  >
+                    {s === 'number' ? '#' : 'A–Z'}
+                  </button>
+                ))}
+              </div>
             </div>
           ) : null}
         </div>
