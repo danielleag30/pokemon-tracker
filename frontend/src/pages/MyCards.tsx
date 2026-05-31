@@ -42,6 +42,13 @@ export function MyCards() {
 
   const allOwnedCards = ownedCards ?? [];
 
+  // Precompute price once per card — reused in groupBy bucketing, sort, group header, and card tile
+  const priceMap = useMemo(() => {
+    const map = new Map<string, number | null>();
+    allOwnedCards.forEach(({ card }) => map.set(card.id, getMarketPrice(card)));
+    return map;
+  }, [allOwnedCards]);
+
   // Which foil tiers are actually used in the collection
   // null foil_type resolves to the card's most basic available version
   const usedFoilTiers = useMemo(() => {
@@ -95,7 +102,7 @@ export function MyCards() {
           break;
         }
         case 'value': {
-          const price = getMarketPrice(item.card);
+          const price = priceMap.get(item.card.id) ?? null;
           if (price == null) { key = 'unpriced'; label = 'No Price Data'; }
           else if (price >= 50)  { key = 'gem';    label = '💎 $50+'; }
           else if (price >= 20)  { key = 'high';   label = '🔥 $20–$49'; }
@@ -132,7 +139,7 @@ export function MyCards() {
       const valueOrder = ['gem', 'high', 'mid', 'low', 'common', 'bulk', 'unpriced'];
       result.sort((a, b) => valueOrder.indexOf(a.key) - valueOrder.indexOf(b.key));
       // Within each price tier sort by price desc
-      result.forEach((g) => g.cards.sort((a, b) => (getMarketPrice(b.card) ?? 0) - (getMarketPrice(a.card) ?? 0)));
+      result.forEach((g) => g.cards.sort((a, b) => (priceMap.get(b.card.id) ?? 0) - (priceMap.get(a.card.id) ?? 0)));
     } else if (groupBy === 'set') {
       result.sort((a, b) => {
         const aDate = a.cards[0]?.card.set.releaseDate ?? '';
@@ -166,7 +173,7 @@ export function MyCards() {
     }
 
     return result;
-  }, [filteredCards, groupBy]);
+  }, [filteredCards, groupBy, priceMap]);
 
   const binders = stats?.binders ?? [];
 
@@ -371,7 +378,7 @@ export function MyCards() {
               </span>
               {(() => {
                 const groupValue = group.cards.reduce((sum, { card, entry }) => {
-                  const p = getMarketPrice(card);
+                  const p = priceMap.get(card.id) ?? null;
                   return sum + (p != null ? p * entry.quantity : 0);
                 }, 0);
                 return groupValue > 0 ? (
@@ -383,7 +390,7 @@ export function MyCards() {
             </div>
             <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-2">
               {group.cards.map(({ entry, card }) => {
-                const price = getMarketPrice(card);
+                const price = priceMap.get(card.id) ?? null;
                 const isSelected = selectedIds.has(entry.card_id);
                 return (
                   <div

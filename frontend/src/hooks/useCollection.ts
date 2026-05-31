@@ -22,9 +22,11 @@ export function useCollectionStats() {
 
 export function useCollectionMap() {
   const { data: collection } = useCollection();
-  const map = new Map<string, CollectionEntry>();
-  collection?.forEach((e) => map.set(e.card_id, e));
-  return map;
+  return useMemo(() => {
+    const map = new Map<string, CollectionEntry>();
+    collection?.forEach((e) => map.set(e.card_id, e));
+    return map;
+  }, [collection]);
 }
 
 export function useCollectionWithCards() {
