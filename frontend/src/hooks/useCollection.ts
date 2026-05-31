@@ -1,6 +1,6 @@
-import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { collectionApi, cardsApi } from '../utils/api';
+import { collectionApi } from '../utils/api';
 import { getMarketPrice } from '../utils/prices';
 import type { CollectionEntry, TCGCard } from '../types';
 
@@ -27,6 +27,14 @@ export function useCollectionMap() {
   return map;
 }
 
+export function useCollectionWithCards() {
+  return useQuery({
+    queryKey: ['collection-with-cards'],
+    queryFn: collectionApi.getWithCards,
+    staleTime: 30_000,
+  });
+}
+
 export function useAddCard() {
   const qc = useQueryClient();
   return useMutation({
@@ -34,6 +42,7 @@ export function useAddCard() {
       collectionApi.add(cardId, quantity, binderTag, foilType),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['collection'] });
+      qc.invalidateQueries({ queryKey: ['collection-with-cards'] });
       qc.invalidateQueries({ queryKey: ['collection-stats'] });
     },
   });
@@ -46,6 +55,7 @@ export function useBatchAddCards() {
       collectionApi.batchAdd(cards),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['collection'] });
+      qc.invalidateQueries({ queryKey: ['collection-with-cards'] });
       qc.invalidateQueries({ queryKey: ['collection-stats'] });
     },
   });
@@ -58,6 +68,7 @@ export function useUpdateCard() {
       collectionApi.update(cardId, updates),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['collection'] });
+      qc.invalidateQueries({ queryKey: ['collection-with-cards'] });
       qc.invalidateQueries({ queryKey: ['collection-stats'] });
     },
   });
@@ -69,47 +80,22 @@ export function useRemoveCard() {
     mutationFn: (cardId: string) => collectionApi.remove(cardId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['collection'] });
+      qc.invalidateQueries({ queryKey: ['collection-with-cards'] });
       qc.invalidateQueries({ queryKey: ['collection-stats'] });
     },
   });
 }
 
 export function useCollectionValue() {
-  const { data: collection } = useCollection();
-
-  const ownedSetIds = useMemo(() => {
-    if (!collection) return [];
-    const ids = new Set(collection.map((e) => e.card_id.substring(0, e.card_id.lastIndexOf('-'))));
-    return [...ids];
-  }, [collection]);
-
-  const setQueries = useQueries({
-    queries: ownedSetIds.map((setId) => ({
-      queryKey: ['set-cards', setId],
-      queryFn: () => cardsApi.getSetCards(setId),
-      staleTime: 60 * 60_000,
-    })),
-  });
-
-  const isLoading = ownedSetIds.length > 0 && setQueries.some((q) => q.isLoading);
-
-  const cardDataMap = useMemo(() => {
-    const map = new Map<string, TCGCard>();
-    setQueries.forEach((q) => {
-      q.data?.data?.forEach((card: TCGCard) => map.set(card.id, card));
-    });
-    return map;
-  }, [setQueries]);
+  const { data: ownedCards, isLoading } = useCollectionWithCards();
 
   const { totalValue, topCards } = useMemo(() => {
-    if (!collection) return { totalValue: 0, topCards: [] };
+    if (!ownedCards) return { totalValue: 0, topCards: [] };
 
     let total = 0;
     const valued: { card: TCGCard; entry: CollectionEntry; price: number }[] = [];
 
-    collection.forEach((entry) => {
-      const card = cardDataMap.get(entry.card_id);
-      if (!card) return;
+    ownedCards.forEach(({ entry, card }) => {
       const price = getMarketPrice(card, entry.foil_type);
       if (price != null) {
         total += price * entry.quantity;
@@ -119,7 +105,7 @@ export function useCollectionValue() {
 
     valued.sort((a, b) => b.price - a.price);
     return { totalValue: total, topCards: valued.slice(0, 6) };
-  }, [collection, cardDataMap]);
+  }, [ownedCards]);
 
   return { totalValue, topCards, isLoading };
 }

@@ -1,0 +1,49 @@
+name: Weekly Price Refresh
+
+on:
+  schedule:
+    - cron: '0 3 * * 2'  # Tuesday 3am UTC
+    - cron: '0 3 * * 5'  # Friday 3am UTC
+  workflow_dispatch:
+
+jobs:
+  refresh-prices:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger refresh-prices
+        id: trigger
+        run: |
+          STATUS=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+            -X POST \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"page": 1}' \
+            "https://wmwpjkfgapqyyjsjuhos.supabase.co/functions/v1/refresh-prices")
+          echo "Status: $STATUS"
+          cat /tmp/response.json
+          echo ""
+          if [ "$STATUS" -ge 500 ]; then
+            echo "refresh-prices failed with HTTP $STATUS"
+            exit 1
+          fi
+          # The function self-invokes for subsequent pages; first call must report
+          # at least one update or signal done.
+          UPDATED=$(jq -r '.updated // 0' /tmp/response.json)
+          DONE=$(jq -r '.done // false' /tmp/response.json)
+          if [ "$UPDATED" = "0" ] && [ "$DONE" != "true" ]; then
+            echo "refresh-prices returned 0 updates and not done — likely a problem"
+            exit 1
+          fi
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          curl -s -X POST https://api.sendgrid.com/v3/mail/send \
+            -H "Authorization: Bearer ${{ secrets.SENDGRID_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "personalizations": [{"to": [{"email": "danielleag30@gmail.com"}]}],
+              "from": {"email": "alerts@pokemon-tracker.app"},
+              "subject": "Pokemon Tracker: weekly price refresh FAILED",
+              "content": [{"type": "text/plain", "value": "The Monday price refresh workflow failed. Check the Actions tab: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"}]
+            }'

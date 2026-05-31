@@ -1,8 +1,6 @@
 import { useState, useMemo } from 'react';
-import { useQueries } from '@tanstack/react-query';
 import { Search, Loader, Trash2, CheckSquare, Square, X } from 'lucide-react';
-import { useCollection, useCollectionStats, useRemoveCard } from '../hooks/useCollection';
-import { cardsApi } from '../utils/api';
+import { useCollectionWithCards, useCollectionStats, useRemoveCard } from '../hooks/useCollection';
 import { getMarketPrice, formatPrice, getDefaultTier } from '../utils/prices';
 import { CardLightbox } from '../components/CardLightbox';
 import { STARTER_LINES, TYPE_DISPLAY_NAMES, REGIONS } from '../utils/constants';
@@ -38,44 +36,11 @@ export function MyCards() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const { data: collection } = useCollection();
+  const { data: ownedCards, isLoading } = useCollectionWithCards();
   const { data: stats } = useCollectionStats();
   const removeCard = useRemoveCard();
 
-  // Extract unique set IDs from the user's card IDs (everything before the last "-")
-  const ownedSetIds = useMemo(() => {
-    if (!collection) return [];
-    const ids = new Set(collection.map((e) => e.card_id.substring(0, e.card_id.lastIndexOf('-'))));
-    return [...ids];
-  }, [collection]);
-
-  // Fetch full card data for every set the user owns cards from (all cached server-side)
-  const setQueries = useQueries({
-    queries: ownedSetIds.map((setId) => ({
-      queryKey: ['set-cards', setId],
-      queryFn: () => cardsApi.getSetCards(setId),
-      staleTime: 60 * 60_000,
-    })),
-  });
-
-  const isLoading = ownedSetIds.length > 0 && setQueries.some((q) => q.isLoading);
-
-  // Build cardId → TCGCard lookup from fetched set data
-  const cardDataMap = useMemo(() => {
-    const map = new Map<string, TCGCard>();
-    setQueries.forEach((q) => {
-      q.data?.data?.forEach((card: TCGCard) => map.set(card.id, card));
-    });
-    return map;
-  }, [setQueries]);
-
-  // Full collection with TCGCard data attached
-  const allOwnedCards = useMemo((): OwnedCard[] => {
-    if (!collection) return [];
-    return collection
-      .map((entry) => ({ entry, card: cardDataMap.get(entry.card_id) }))
-      .filter((item): item is OwnedCard => item.card !== undefined);
-  }, [collection, cardDataMap]);
+  const allOwnedCards = ownedCards ?? [];
 
   // Which foil tiers are actually used in the collection
   // null foil_type resolves to the card's most basic available version
