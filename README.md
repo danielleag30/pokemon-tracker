@@ -1,21 +1,30 @@
 # PokéTracker
 
-A full-stack Pokémon TCG collection tracker with an AI chat assistant. Browse, filter, and manage your cards across 9 views — by region, type, set, evolution stage, and more — with real-time sync across devices via a shareable collection code.
+<p align="center">
+  <img src="docs/hero-banner.png" alt="PokéTracker — a Pokéball spilling open onto a grid of indexed trading cards" width="700">
+</p>
+
+
+I have a real Pokémon TCG collection, a kid who plays with me, and a spreadsheet that stopped scaling about two thousand cards ago. PokéTracker is what I built instead — a full-stack collection tracker with an AI chat assistant, running on Supabase Edge Functions and a React frontend, that we actually use to figure out what's missing from Base Set and which binder a given Charizard lives in.
+
+It started as a quick Express + SQLite prototype on Railway (still in `backend/`, kept for the git history — it's dead code now, fully superseded). The version that's actually deployed is the one described below: Supabase Postgres with pgvector, Deno edge functions, and a proper auth system built for an account a 10-year-old can log into without an email address.
 
 ---
 
-## Features
+## What it does
 
-- **9 views** — Dashboard, My Cards, By Set, By Region, By Starter, By Type, By Evolution Stage, Missing Cards, Duplicates
-- **AI chat assistant** — ask questions about your collection in plain English; powered by a full RAG pipeline over 13k+ indexed cards
-- **Voice input** — speak queries directly into the chat assistant
-- **Camera input** *(experimental, untested)* — photograph a card to identify it
-- **Batch add mode** — browse any set and check off owned cards in bulk
-- **Foil tier tracking** — Normal, Reverse Holo, Holo, and 1st Edition tracked per card
-- **Set & region completion** — progress bars and missing card lists per set, region, and type
-- **Shareable collection codes** — 8-character ID; append `?c=<CODE>` to any URL to share or switch collections
-- **Export / Import** — full JSON backup and restore
-- **Admin dashboard** — LLM usage metrics, chat logs, intent breakdown, user management
+- **10 ways to browse a collection** — Dashboard, My Cards, Pokédex, By Set, By Series, By Starter, By Type, By Evolution Stage, Missing Cards, Duplicates
+- **An AI chat assistant with a real RAG pipeline** — ask "what fire type cards do I own?" or "which sets am I closest to completing?" in plain English, backed by semantic search over an indexed corpus of the Pokémon TCG API's full card catalog (13k+ cards and growing)
+- **Voice input** — Web Speech API wired directly into the chat box
+- **Camera capture** *(experimental)* — snaps a photo and attaches it to a chat message; honest caveat: the LLM behind it is text-only, so this is currently more "attach a picture" than "identify this card from a photo"
+- **Batch add mode** — browse a whole set, series, or type and check off owned cards in bulk
+- **Foil tier tracking** — Normal, Reverse Holo, Holofoil, 1st Edition Normal, and 1st Edition Holofoil, tracked per card
+- **Set completion tracking** — progress bars and missing-card lists per set, with a chat-driven "which sets am I closest to finishing?" view across the whole collection
+- **PIN-based accounts built for kids** — no email required to log in, COPPA-compliant by design (see below)
+- **Admin dashboard** — LLM usage metrics, latency/token stats, full chat log, intent-frequency breakdown, feedback review, user management
+- **JSON export** — full collection backup, one click
+
+*(A JSON import endpoint exists server-side and was used for the original data migration, but there's no import button in the UI yet — noted as a next step, not a claimed feature.)*
 
 ---
 
@@ -25,192 +34,28 @@ A full-stack Pokémon TCG collection tracker with an AI chat assistant. Browse, 
 |---|---|
 | Frontend | React 18 + TypeScript + Vite, deployed on Vercel |
 | Backend | Supabase Edge Functions (Deno/TypeScript) |
-| Database | Supabase Postgres + pgvector v0.8.0 |
+| Database | Supabase Postgres + pgvector, HNSW cosine index |
 | AI / LLM | Ollama Cloud (`gemma4:31b-cloud`, OpenAI-compatible API) |
 | Embeddings | `gte-small` via Supabase AI (384 dimensions) |
+| Auth | Supabase Auth, wrapped in a username + PIN flow (details below) |
+| Transactional email | SendGrid (account confirmation, PIN reset) |
 | Card data | [Pokémon TCG API](https://pokemontcg.io) |
-| CI/CD | GitHub Actions → Supabase auto-deploy |
+| CI/CD | GitHub Actions → Supabase auto-deploy (5 of 6 functions; see caveat below) |
 
 ---
 
-## How the AI Works (RAG Pipeline)
+## The part I'm proudest of: PIN auth for a kid who doesn't have an email
 
-The chat assistant uses Retrieval-Augmented Generation to answer questions grounded in your actual collection.
+The user base for this app is exactly one Pokémon-obsessed child, and I wasn't going to ask a 10-year-old to manage an email address and a password. So the auth flow does something a little unusual:
 
-```
-User query
-    │
-    ▼
-Intent detection (11 types: owned_search, set_completion, filter_type, foil, region, …)
-    │
-    ▼
-Embed query with gte-small (same model used at ingest time)
-    │
-    ▼
-Route to specialized SQL function
-    ├─ match_owned_cards()       ← semantic search scoped to your cards
-    ├─ match_cards()             ← global search across all 13k+ cards
-    ├─ get_set_completion()      ← "what's missing from Base Set?"
-    ├─ get_all_set_completion()  ← "which sets am I closest to finishing?"
-    ├─ collection_by_filter()    ← "fire type rares"
-    ├─ get_collection_with_foil()← "1st edition cards"
-    └─ get_collection_by_region()← "my Kanto cards"
-    │
-    ▼
-Build context (retrieved cards + collection summary + page context)
-    │
-    ▼
-Call LLM (gemma4 31B via Ollama Cloud)
-    │
-    ▼
-Stream reply → log intent, latency, token usage → render card images inline
-```
+1. On registration, the child (or I, as the parent) picks a **username** and a **6-digit PIN**. A parent email is required, but it's never shown to the app or used to log in.
+2. The edge function maps the username to a synthetic internal email (`username@pokemontracker.app`) and calls Supabase's admin API to create a real auth user with the PIN as the password.
+3. Login exchanges username + PIN for that synthetic email + password via `signInWithPassword`, which hands back a genuine Supabase session JWT — so from that point on, everything (RLS policies, edge function auth checks) works exactly like normal Supabase Auth. The synthetic-email trick is purely a translation layer at the door.
+4. Forgot your PIN? Supabase's own `generateLink` recovery flow issues a signed reset link, delivered by email (to the parent, for child accounts) via SendGrid.
 
-**Ingestion** runs weekly via `ingest-check`: new sets are fetched from the TCG API, each card's metadata is formatted into a text chunk, embedded with `gte-small`, and upserted into `cards_vectors` (a pgvector table with an HNSW cosine-similarity index). The initial run indexes ~13k cards and takes 10–15 minutes.
+It's paired with a real `/privacy` page that spells out COPPA compliance in plain language: parent-provided email only, no PII collected from the child, no ads, no third-party tracking, and a stated 30-day window to review/delete data on request.
 
 ---
 
-## Project Structure
+## How the AI Chat Works (RAG Pipeline)
 
-```
-pokemon-tracker/
-├── supabase/
-│   ├── config.toml
-│   ├── migrations/                 # Postgres schema (collection, cards_vectors, chat_logs)
-│   └── functions/
-│       ├── _shared/                # CORS helpers, Supabase client factory
-│       ├── auth/                   # Login, register, pin reset
-│       ├── collection/             # CRUD + import/export
-│       ├── cards/                  # TCG API proxy with set/card cache
-│       ├── chat/                   # RAG pipeline + LLM call
-│       ├── admin/                  # Admin metrics + user management RPCs
-│       ├── ingest-cards/           # Fan-out embedding pipeline
-│       └── ingest-check/           # Weekly incremental sync
-├── frontend/
-│   └── src/
-│       ├── components/             # ChatModal, BatchAddModal, CardGrid, NavBar, …
-│       ├── hooks/                  # useCollection, useCards
-│       ├── pages/                  # 9 route pages + Admin
-│       ├── types/
-│       └── utils/
-│           └── api.ts              # Axios client → Supabase edge functions
-├── scripts/
-│   └── migrate-collection.ts      # One-time JSON → Supabase import
-└── .github/workflows/
-    ├── supabase-deploy.yml         # Auto-deploy edge functions on push to main
-    └── supabase-keepalive.yml      # Ping every 3 days (free tier anti-pause)
-```
-
----
-
-## Local Development
-
-### Prerequisites
-
-- Node 20+
-- [Supabase CLI](https://supabase.com/docs/guides/cli)
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-cp .env.example .env     # fill in VITE_API_URL
-npm run dev
-```
-
-`.env`:
-```env
-VITE_API_URL=https://<your-project-ref>.supabase.co
-```
-
-### Edge Functions
-
-```bash
-supabase start
-supabase functions serve
-```
-
----
-
-## Deployment
-
-### 1. Link your Supabase project
-
-```bash
-supabase login
-supabase link --project-ref <your-project-ref>
-```
-
-### 2. Push the database schema
-
-```bash
-supabase db push
-```
-
-### 3. Deploy edge functions
-
-```bash
-supabase functions deploy auth         --no-verify-jwt
-supabase functions deploy collection   --no-verify-jwt
-supabase functions deploy cards        --no-verify-jwt
-supabase functions deploy chat         --no-verify-jwt
-supabase functions deploy admin        --no-verify-jwt
-supabase functions deploy ingest-cards --no-verify-jwt
-supabase functions deploy ingest-check --no-verify-jwt
-```
-
-After the first manual deploy, GitHub Actions handles all subsequent deploys on push to `main`.
-
-### 4. Set edge function secrets
-
-In the [Supabase Dashboard → Edge Functions → Secrets](https://supabase.com/dashboard):
-
-| Secret | Description |
-|---|---|
-| `POKEMON_TCG_API_KEY` | [pokemontcg.io](https://pokemontcg.io) API key |
-| `OLLAMA_CLOUD_URL` | Ollama Cloud base URL |
-| `OLLAMA_CLOUD_TOKEN` | Ollama Cloud bearer token |
-| `OLLAMA_CLOUD_MODEL` | e.g. `gemma4:31b-cloud` |
-
-`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are injected automatically.
-
-### 5. Set GitHub Actions secrets
-
-| Secret | Where |
-|---|---|
-| `SUPABASE_ACCESS_TOKEN` | supabase.com → Account → Access Tokens |
-| `SUPABASE_DB_PASSWORD` | Supabase Dashboard → Project Settings → Database |
-
-### 6. Trigger initial card ingestion
-
-```bash
-curl -X POST https://<your-project-ref>.supabase.co/functions/v1/ingest-cards \
-  -H "Content-Type: application/json" \
-  -d '{"page": 1}'
-```
-
-This fans out automatically across all pages (~13k cards, 10–15 min). Monitor progress in Table Editor → `ingest_queue`.
-
----
-
-## Collection Codes
-
-Each collection is identified by an 8-character code stored in `localStorage` (e.g., `BRANTLEY`). Appending `?c=<CODE>` to any URL switches the active collection — useful for sharing with friends or syncing across devices without an account.
-
-### Import an existing collection from JSON
-
-```bash
-cd scripts
-npm install
-SUPABASE_SERVICE_KEY=<your-service-role-key> \
-  npx ts-node --transpile-only migrate-collection.ts ~/Downloads/your-export.json
-```
-
----
-
-## Known Quirks
-
-- **Edge runtime URL stripping** — Supabase strips `/functions/v1` from `req.url` inside a deployed function. Path parsing must match `/<slug>/...`, not `/functions/v1/<slug>/...`.
-- **Free tier anti-pause** — `supabase-keepalive.yml` pings the project every 3 days to prevent Supabase from pausing inactive free-tier projects.
-- **Embedding model parity** — both ingest and query use `gte-small`. Swapping models requires re-ingesting all cards.
