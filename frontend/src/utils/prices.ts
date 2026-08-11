@@ -15,11 +15,15 @@ export function getDefaultTier(card: TCGCard): FoilType | null {
 export function getMarketPrice(card: TCGCard, foilType?: FoilType | null): number | null {
   const p = card.tcgplayer?.prices;
   if (p) {
-    if (foilType) {
-      return p[foilType]?.market ?? null;
+    // Requested tier (or the card's most basic tier when none is requested) first;
+    // fall through the rest of FOIL_PRIORITY before giving up on TCGPlayer entirely.
+    // A tagged tier with no market price should still resolve to *some* price
+    // rather than null — losing the cardmarket fallback below was the bug.
+    const tier = foilType ?? getDefaultTier(card);
+    if (tier && p[tier]?.market != null) return p[tier]!.market!;
+    for (const t of FOIL_PRIORITY) {
+      if (p[t]?.market != null) return p[t]!.market!;
     }
-    const available = FOIL_PRIORITY.map((t) => p[t]?.market).filter((v): v is number => v != null);
-    if (available.length > 0) return Math.min(...available);
   }
   return card.cardmarket?.prices?.trendPrice ?? null;
 }
