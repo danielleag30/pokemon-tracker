@@ -14,6 +14,13 @@ interface OwnedCard {
   card: TCGCard;
 }
 
+// card is null when the catalog doesn't have this card_id yet (ingest gap,
+// or a set pokemontcg.io doesn't carry at all) — rendered separately below.
+interface PendingCard {
+  entry: CollectionEntry;
+  card: null;
+}
+
 interface Group {
   key: string;
   label: string;
@@ -42,29 +49,46 @@ export function MyCards() {
 
   const allOwnedCards = ownedCards ?? [];
 
+  // Split off cards the catalog doesn't have data for yet — grouping/pricing/
+  // search all need real card data, so they only ever operate on resolvedCards.
+  const resolvedCards = useMemo(
+    (): OwnedCard[] => allOwnedCards.filter((c): c is OwnedCard => c.card !== null),
+    [allOwnedCards],
+  );
+  const pendingCards = useMemo(
+    (): PendingCard[] => allOwnedCards.filter((c): c is PendingCard => c.card === null),
+    [allOwnedCards],
+  );
+
   // Precompute price once per card — reused in groupBy bucketing, sort, group header, and card tile
   const priceMap = useMemo(() => {
     const map = new Map<string, number | null>();
-    allOwnedCards.forEach(({ card }) => map.set(card.id, getMarketPrice(card)));
+    resolvedCards.forEach(({ card }) => map.set(card.id, getMarketPrice(card)));
     return map;
-  }, [allOwnedCards]);
+  }, [resolvedCards]);
 
   // Which foil tiers are actually used in the collection
   // null foil_type resolves to the card's most basic available version
   const usedFoilTiers = useMemo(() => {
-    const tiers = new Set(allOwnedCards.map(({ entry, card }) => entry.foil_type ?? getDefaultTier(card) ?? 'normal'));
+    const tiers = new Set(resolvedCards.map(({ entry, card }) => entry.foil_type ?? getDefaultTier(card) ?? 'normal'));
     return FOIL_PRIORITY.filter((t) => tiers.has(t));
-  }, [allOwnedCards]);
+  }, [resolvedCards]);
 
   // Apply binder + foil + search filters
   const filteredCards = useMemo(() => {
-    return allOwnedCards.filter(({ entry, card }) => {
+    return resolvedCards.filter(({ entry, card }) => {
       if (selectedBinder !== null && entry.binder_tag !== selectedBinder) return false;
       if (selectedFoil !== null && (entry.foil_type ?? getDefaultTier(card) ?? 'normal') !== selectedFoil) return false;
       if (search && !card.name.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     });
-  }, [allOwnedCards, selectedBinder, selectedFoil, search]);
+  }, [resolvedCards, selectedBinder, selectedFoil, search]);
+
+  // Pending cards respect the binder filter (we know that much without catalog data)
+  const filteredPendingCards = useMemo(
+    () => pendingCards.filter(({ entry }) => selectedBinder === null || entry.binder_tag === selectedBinder),
+    [pendingCards, selectedBinder],
+  );
 
   // Group and sort cards by the chosen grouping
   const groups = useMemo((): Group[] => {
@@ -360,9 +384,37 @@ export function MyCards() {
       )}
 
       {/* No results after filter */}
-      {!isLoading && allOwnedCards.length > 0 && filteredCards.length === 0 && (
+      {!isLoading && allOwnedCards.length > 0 && filteredCards.length === 0 && filteredPendingCards.length === 0 && (
         <div className="flex flex-col items-center justify-center py-10 text-gray-400">
           <p className="text-sm">No cards match your filters.</p>
+        </div>
+      )}
+
+      {/* Catalog data pending — owned cards not yet in the catalog */}
+      {!isLoading && filteredPendingCards.length > 0 && (
+        <div className="bg-amber-50 rounded-2xl p-4 border border-amber-200">
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <span className="text-lg">⏳</span>
+            <h2 className="font-bold text-amber-800">Catalog Data Pending</h2>
+            <span className="text-xs text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">
+              {filteredPendingCards.length}
+            </span>
+          </div>
+          <p className="text-xs text-amber-700 mb-3">
+            These cards are in your collection but haven't finished syncing from the card database yet — no image or price until they do.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {filteredPendingCards.map(({ entry }) => (
+              <div
+                key={entry.card_id}
+                className="text-xs bg-white text-amber-800 border border-amber-200 rounded-lg px-2 py-1.5"
+                title={entry.card_id}
+              >
+                {entry.card_id}
+                {entry.quantity > 1 && <span className="ml-1 font-semibold">×{entry.quantity}</span>}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

@@ -98,6 +98,7 @@ export function useCollectionValue() {
     const valued: { card: TCGCard; entry: CollectionEntry; price: number }[] = [];
 
     ownedCards.forEach(({ entry, card }) => {
+      if (!card) return; // catalog data pending — no price to contribute yet
       const price = getMarketPrice(card, entry.foil_type);
       if (price != null) {
         total += price * entry.quantity;

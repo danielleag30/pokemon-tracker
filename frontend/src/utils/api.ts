@@ -50,10 +50,13 @@ export const collectionApi = {
   importCollection: (collection: CollectionEntry[], merge = true) =>
     client.post(`${FUNCTIONS}/collection/import`, { collection, merge }).then((r) => r.data),
 
-  getWithCards: async (): Promise<{ entry: CollectionEntry; card: TCGCard }[]> => {
+  // card is null when card_id isn't in the catalog yet (ingest gap or a set
+  // pokemontcg.io doesn't carry) — callers render a "catalog data pending"
+  // state rather than the entry silently vanishing.
+  getWithCards: async (): Promise<{ entry: CollectionEntry; card: TCGCard | null }[]> => {
     const { data, error } = await supabase.rpc('get_collection_with_cards');
     if (error) throw error;
-    return (data ?? []).filter((row: { raw_data: unknown }) => row.raw_data != null).map((row: {
+    return (data ?? []).map((row: {
       card_id: string; quantity: number; binder_tag: string | null;
       foil_type: string | null; added_at: string; updated_at: string; raw_data: unknown;
     }) => ({
@@ -65,7 +68,7 @@ export const collectionApi = {
         added_at: row.added_at,
         updated_at: row.updated_at,
       },
-      card: row.raw_data as TCGCard,
+      card: (row.raw_data as TCGCard | null) ?? null,
     }));
   },
 };
