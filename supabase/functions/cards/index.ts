@@ -52,6 +52,19 @@ Deno.serve(async (req) => {
           hasMore = data.data.length === 250;
           page++;
         }
+
+        // A 200 with a short/empty page mid-pagination (rather than a thrown
+        // error) would otherwise look "complete" and get cached as such.
+        // Cross-check against the set's known total from sets_cache when
+        // available, so a truncated result is treated like an upstream
+        // failure — fall back to stale cache, don't cache the gap.
+        const { data: setsCache } = await supabase
+          .from('sets_cache').select('data').eq('cache_key', 'all_sets').single();
+        const expectedTotal = (setsCache?.data as { data?: { id: string; total: number }[] } | null)
+          ?.data?.find((s) => s.id === setId)?.total;
+        if (expectedTotal != null && allCards.length < expectedTotal) {
+          throw new Error(`Incomplete set fetch for ${setId}: got ${allCards.length} of ${expectedTotal}`);
+        }
       } catch (e) {
         if (cached) return json({ ...cached.data, stale: true });
         throw e;
