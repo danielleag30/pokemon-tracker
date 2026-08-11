@@ -60,10 +60,13 @@ export function MyCards() {
     [allOwnedCards],
   );
 
-  // Precompute price once per card — reused in groupBy bucketing, sort, group header, and card tile
+  // Precompute price once per card — reused in groupBy bucketing, sort, group header, and card tile.
+  // Must pass entry.foil_type: Dashboard's useCollectionValue prices the exact
+  // owned tier, and pricing the default tier here instead silently disagreed
+  // with it (measured $2,220.74 vs $2,260.69 on live data — 74 of 737 rows).
   const priceMap = useMemo(() => {
     const map = new Map<string, number | null>();
-    resolvedCards.forEach(({ card }) => map.set(card.id, getMarketPrice(card)));
+    resolvedCards.forEach(({ card, entry }) => map.set(card.id, getMarketPrice(card, entry.foil_type)));
     return map;
   }, [resolvedCards]);
 
