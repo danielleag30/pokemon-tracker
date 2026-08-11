@@ -30,6 +30,64 @@ function buildTCGQuery(input: string): string {
   return `name:${term}*`;
 }
 
+interface CardRowProps {
+  card: TCGCard;
+  isOwned: boolean;
+  isSelected: boolean;
+  currentTier: FoilType | null;
+  onToggle: (card: TCGCard) => void;
+  onSetTier: (cardId: string, tier: FoilType) => void;
+  ownedQuantity?: number;
+}
+
+function CardRow({ card, isOwned, isSelected, currentTier, onToggle, onSetTier, ownedQuantity }: CardRowProps) {
+  const tiers = getAvailableTiers(card);
+  return (
+    <div
+      className={`flex items-center gap-3 p-2.5 rounded-xl transition-all ${
+        isSelected
+          ? 'bg-pokemon-blue/10 ring-2 ring-pokemon-blue'
+          : isOwned
+          ? 'bg-green-50 ring-1 ring-green-200'
+          : 'bg-gray-50 hover:bg-gray-100'
+      }`}
+    >
+      <button
+        onClick={() => onToggle(card)}
+        className="flex items-center gap-3 flex-1 min-w-0 text-left"
+      >
+        {isSelected
+          ? <CheckSquare size={16} className="text-pokemon-blue shrink-0" />
+          : <Square size={16} className="text-gray-300 shrink-0" />}
+        <img src={card.images.small} alt={card.name} className="w-8 h-11 object-contain rounded shrink-0" />
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-gray-800 truncate">{card.name}</p>
+          <p className="text-xs text-gray-500">
+            {card.set.name} #{card.number} · {card.rarity ?? '—'}
+          </p>
+        </div>
+      </button>
+      {isOwned && !isSelected && (
+        <span className="shrink-0 text-xs bg-green-100 text-green-700 font-semibold px-1.5 py-0.5 rounded-full">
+          ✓ {ownedQuantity}
+        </span>
+      )}
+      {isSelected && tiers.length > 1 && (
+        <select
+          value={currentTier ?? ''}
+          onChange={(e) => onSetTier(card.id, e.target.value as FoilType)}
+          onClick={(e) => e.stopPropagation()}
+          className="shrink-0 text-xs border border-pokemon-blue/30 rounded-lg px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-pokemon-blue max-w-[110px]"
+        >
+          {tiers.map((t) => (
+            <option key={t} value={t}>{FOIL_LABELS[t]}</option>
+          ))}
+        </select>
+      )}
+    </div>
+  );
+}
+
 interface Props {
   onClose: () => void;
 }
@@ -178,57 +236,6 @@ export function BatchAddModal({ onClose }: Props) {
     (mode === 'series' && !!selectedSeries && activeCards.length > 0) ||
     (mode === 'type' && !!selectedType && activeCards.length > 0) ||
     (mode === 'search' && searchResults.length > 0);
-
-  const CardRow = ({ card }: { card: TCGCard }) => {
-    const isOwned = collectionMap.has(card.id);
-    const isSelected = selected.has(card.id);
-    const tiers = getAvailableTiers(card);
-    const currentTier = selected.get(card.id) ?? null;
-    return (
-      <div
-        className={`flex items-center gap-3 p-2.5 rounded-xl transition-all ${
-          isSelected
-            ? 'bg-pokemon-blue/10 ring-2 ring-pokemon-blue'
-            : isOwned
-            ? 'bg-green-50 ring-1 ring-green-200'
-            : 'bg-gray-50 hover:bg-gray-100'
-        }`}
-      >
-        <button
-          onClick={() => toggle(card)}
-          className="flex items-center gap-3 flex-1 min-w-0 text-left"
-        >
-          {isSelected
-            ? <CheckSquare size={16} className="text-pokemon-blue shrink-0" />
-            : <Square size={16} className="text-gray-300 shrink-0" />}
-          <img src={card.images.small} alt={card.name} className="w-8 h-11 object-contain rounded shrink-0" />
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-gray-800 truncate">{card.name}</p>
-            <p className="text-xs text-gray-500">
-              {card.set.name} #{card.number} · {card.rarity ?? '—'}
-            </p>
-          </div>
-        </button>
-        {isOwned && !isSelected && (
-          <span className="shrink-0 text-xs bg-green-100 text-green-700 font-semibold px-1.5 py-0.5 rounded-full">
-            ✓ {collectionMap.get(card.id)!.quantity}
-          </span>
-        )}
-        {isSelected && tiers.length > 1 && (
-          <select
-            value={currentTier ?? ''}
-            onChange={(e) => setTier(card.id, e.target.value as FoilType)}
-            onClick={(e) => e.stopPropagation()}
-            className="shrink-0 text-xs border border-pokemon-blue/30 rounded-lg px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-pokemon-blue max-w-[110px]"
-          >
-            {tiers.map((t) => (
-              <option key={t} value={t}>{FOIL_LABELS[t]}</option>
-            ))}
-          </select>
-        )}
-      </div>
-    );
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -447,7 +454,18 @@ export function BatchAddModal({ onClose }: Props) {
 
           {!isLoading && activeCards.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-              {activeCards.map((card) => <CardRow key={card.id} card={card} />)}
+              {activeCards.map((card) => (
+                <CardRow
+                  key={card.id}
+                  card={card}
+                  isOwned={collectionMap.has(card.id)}
+                  isSelected={selected.has(card.id)}
+                  currentTier={selected.get(card.id) ?? null}
+                  ownedQuantity={collectionMap.get(card.id)?.quantity}
+                  onToggle={toggle}
+                  onSetTier={setTier}
+                />
+              ))}
             </div>
           )}
 

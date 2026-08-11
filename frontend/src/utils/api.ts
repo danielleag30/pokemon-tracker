@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { CollectionEntry, CollectionStats } from '../types';
+import type { CollectionEntry, CollectionStats, TCGCard, FoilType } from '../types';
 import { supabase } from '../lib/supabase';
 
 const BASE = import.meta.env.VITE_API_URL || '';
@@ -49,6 +49,28 @@ export const collectionApi = {
 
   importCollection: (collection: CollectionEntry[], merge = true) =>
     client.post(`${FUNCTIONS}/collection/import`, { collection, merge }).then((r) => r.data),
+
+  // card is null when card_id isn't in the catalog yet (ingest gap or a set
+  // pokemontcg.io doesn't carry) — callers render a "catalog data pending"
+  // state rather than the entry silently vanishing.
+  getWithCards: async (): Promise<{ entry: CollectionEntry; card: TCGCard | null }[]> => {
+    const { data, error } = await supabase.rpc('get_collection_with_cards');
+    if (error) throw error;
+    return (data ?? []).map((row: {
+      card_id: string; quantity: number; binder_tag: string | null;
+      foil_type: string | null; added_at: string; updated_at: string; raw_data: unknown;
+    }) => ({
+      entry: {
+        card_id: row.card_id,
+        quantity: row.quantity,
+        binder_tag: row.binder_tag,
+        foil_type: row.foil_type as FoilType | null,
+        added_at: row.added_at,
+        updated_at: row.updated_at,
+      },
+      card: (row.raw_data as TCGCard | null) ?? null,
+    }));
+  },
 };
 
 export const cardsApi = {

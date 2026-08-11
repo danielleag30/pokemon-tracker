@@ -1,8 +1,6 @@
 import { useState, useMemo } from 'react';
-import { useQueries } from '@tanstack/react-query';
 import { Search, Loader, Trash2, CheckSquare, Square, X } from 'lucide-react';
-import { useCollection, useCollectionStats, useRemoveCard } from '../hooks/useCollection';
-import { cardsApi } from '../utils/api';
+import { useCollectionWithCards, useCollectionStats, useRemoveCard } from '../hooks/useCollection';
 import { getMarketPrice, formatPrice, getDefaultTier } from '../utils/prices';
 import { CardLightbox } from '../components/CardLightbox';
 import { STARTER_LINES, TYPE_DISPLAY_NAMES, REGIONS } from '../utils/constants';
@@ -14,6 +12,13 @@ type GroupBy = 'set' | 'series' | 'starter' | 'type' | 'evolution' | 'value';
 interface OwnedCard {
   entry: CollectionEntry;
   card: TCGCard;
+}
+
+// card is null when the catalog doesn't have this card_id yet (ingest gap,
+// or a set pokemontcg.io doesn't carry at all) — rendered separately below.
+interface PendingCard {
+  entry: CollectionEntry;
+  card: null;
 }
 
 interface Group {
@@ -38,61 +43,52 @@ export function MyCards() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const { data: collection } = useCollection();
+  const { data: ownedCards, isLoading } = useCollectionWithCards();
   const { data: stats } = useCollectionStats();
   const removeCard = useRemoveCard();
 
-  // Extract unique set IDs from the user's card IDs (everything before the last "-")
-  const ownedSetIds = useMemo(() => {
-    if (!collection) return [];
-    const ids = new Set(collection.map((e) => e.card_id.substring(0, e.card_id.lastIndexOf('-'))));
-    return [...ids];
-  }, [collection]);
+  const allOwnedCards = ownedCards ?? [];
 
-  // Fetch full card data for every set the user owns cards from (all cached server-side)
-  const setQueries = useQueries({
-    queries: ownedSetIds.map((setId) => ({
-      queryKey: ['set-cards', setId],
-      queryFn: () => cardsApi.getSetCards(setId),
-      staleTime: 60 * 60_000,
-    })),
-  });
+  // Split off cards the catalog doesn't have data for yet — grouping/pricing/
+  // search all need real card data, so they only ever operate on resolvedCards.
+  const resolvedCards = useMemo(
+    (): OwnedCard[] => allOwnedCards.filter((c): c is OwnedCard => c.card !== null),
+    [allOwnedCards],
+  );
+  const pendingCards = useMemo(
+    (): PendingCard[] => allOwnedCards.filter((c): c is PendingCard => c.card === null),
+    [allOwnedCards],
+  );
 
-  const isLoading = ownedSetIds.length > 0 && setQueries.some((q) => q.isLoading);
-
-  // Build cardId → TCGCard lookup from fetched set data
-  const cardDataMap = useMemo(() => {
-    const map = new Map<string, TCGCard>();
-    setQueries.forEach((q) => {
-      q.data?.data?.forEach((card: TCGCard) => map.set(card.id, card));
-    });
+  // Precompute price once per card — reused in groupBy bucketing, sort, group header, and card tile
+  const priceMap = useMemo(() => {
+    const map = new Map<string, number | null>();
+    resolvedCards.forEach(({ card }) => map.set(card.id, getMarketPrice(card)));
     return map;
-  }, [setQueries]);
-
-  // Full collection with TCGCard data attached
-  const allOwnedCards = useMemo((): OwnedCard[] => {
-    if (!collection) return [];
-    return collection
-      .map((entry) => ({ entry, card: cardDataMap.get(entry.card_id) }))
-      .filter((item): item is OwnedCard => item.card !== undefined);
-  }, [collection, cardDataMap]);
+  }, [resolvedCards]);
 
   // Which foil tiers are actually used in the collection
   // null foil_type resolves to the card's most basic available version
   const usedFoilTiers = useMemo(() => {
-    const tiers = new Set(allOwnedCards.map(({ entry, card }) => entry.foil_type ?? getDefaultTier(card) ?? 'normal'));
+    const tiers = new Set(resolvedCards.map(({ entry, card }) => entry.foil_type ?? getDefaultTier(card) ?? 'normal'));
     return FOIL_PRIORITY.filter((t) => tiers.has(t));
-  }, [allOwnedCards]);
+  }, [resolvedCards]);
 
   // Apply binder + foil + search filters
   const filteredCards = useMemo(() => {
-    return allOwnedCards.filter(({ entry, card }) => {
+    return resolvedCards.filter(({ entry, card }) => {
       if (selectedBinder !== null && entry.binder_tag !== selectedBinder) return false;
       if (selectedFoil !== null && (entry.foil_type ?? getDefaultTier(card) ?? 'normal') !== selectedFoil) return false;
       if (search && !card.name.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     });
-  }, [allOwnedCards, selectedBinder, selectedFoil, search]);
+  }, [resolvedCards, selectedBinder, selectedFoil, search]);
+
+  // Pending cards respect the binder filter (we know that much without catalog data)
+  const filteredPendingCards = useMemo(
+    () => pendingCards.filter(({ entry }) => selectedBinder === null || entry.binder_tag === selectedBinder),
+    [pendingCards, selectedBinder],
+  );
 
   // Group and sort cards by the chosen grouping
   const groups = useMemo((): Group[] => {
@@ -130,7 +126,7 @@ export function MyCards() {
           break;
         }
         case 'value': {
-          const price = getMarketPrice(item.card);
+          const price = priceMap.get(item.card.id) ?? null;
           if (price == null) { key = 'unpriced'; label = 'No Price Data'; }
           else if (price >= 50)  { key = 'gem';    label = '💎 $50+'; }
           else if (price >= 20)  { key = 'high';   label = '🔥 $20–$49'; }
@@ -167,7 +163,7 @@ export function MyCards() {
       const valueOrder = ['gem', 'high', 'mid', 'low', 'common', 'bulk', 'unpriced'];
       result.sort((a, b) => valueOrder.indexOf(a.key) - valueOrder.indexOf(b.key));
       // Within each price tier sort by price desc
-      result.forEach((g) => g.cards.sort((a, b) => (getMarketPrice(b.card) ?? 0) - (getMarketPrice(a.card) ?? 0)));
+      result.forEach((g) => g.cards.sort((a, b) => (priceMap.get(b.card.id) ?? 0) - (priceMap.get(a.card.id) ?? 0)));
     } else if (groupBy === 'set') {
       result.sort((a, b) => {
         const aDate = a.cards[0]?.card.set.releaseDate ?? '';
@@ -201,7 +197,7 @@ export function MyCards() {
     }
 
     return result;
-  }, [filteredCards, groupBy]);
+  }, [filteredCards, groupBy, priceMap]);
 
   const binders = stats?.binders ?? [];
 
@@ -388,9 +384,37 @@ export function MyCards() {
       )}
 
       {/* No results after filter */}
-      {!isLoading && allOwnedCards.length > 0 && filteredCards.length === 0 && (
+      {!isLoading && allOwnedCards.length > 0 && filteredCards.length === 0 && filteredPendingCards.length === 0 && (
         <div className="flex flex-col items-center justify-center py-10 text-gray-400">
           <p className="text-sm">No cards match your filters.</p>
+        </div>
+      )}
+
+      {/* Catalog data pending — owned cards not yet in the catalog */}
+      {!isLoading && filteredPendingCards.length > 0 && (
+        <div className="bg-amber-50 rounded-2xl p-4 border border-amber-200">
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <span className="text-lg">⏳</span>
+            <h2 className="font-bold text-amber-800">Catalog Data Pending</h2>
+            <span className="text-xs text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">
+              {filteredPendingCards.length}
+            </span>
+          </div>
+          <p className="text-xs text-amber-700 mb-3">
+            These cards are in your collection but haven't finished syncing from the card database yet — no image or price until they do.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {filteredPendingCards.map(({ entry }) => (
+              <div
+                key={entry.card_id}
+                className="text-xs bg-white text-amber-800 border border-amber-200 rounded-lg px-2 py-1.5"
+                title={entry.card_id}
+              >
+                {entry.card_id}
+                {entry.quantity > 1 && <span className="ml-1 font-semibold">×{entry.quantity}</span>}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -406,7 +430,7 @@ export function MyCards() {
               </span>
               {(() => {
                 const groupValue = group.cards.reduce((sum, { card, entry }) => {
-                  const p = getMarketPrice(card);
+                  const p = priceMap.get(card.id) ?? null;
                   return sum + (p != null ? p * entry.quantity : 0);
                 }, 0);
                 return groupValue > 0 ? (
@@ -418,7 +442,7 @@ export function MyCards() {
             </div>
             <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-2">
               {group.cards.map(({ entry, card }) => {
-                const price = getMarketPrice(card);
+                const price = priceMap.get(card.id) ?? null;
                 const isSelected = selectedIds.has(entry.card_id);
                 return (
                   <div

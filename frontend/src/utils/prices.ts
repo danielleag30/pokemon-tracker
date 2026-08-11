@@ -15,11 +15,11 @@ export function getDefaultTier(card: TCGCard): FoilType | null {
 export function getMarketPrice(card: TCGCard, foilType?: FoilType | null): number | null {
   const p = card.tcgplayer?.prices;
   if (p) {
-    const tier = foilType ?? getDefaultTier(card);
-    if (tier && p[tier]?.market != null) return p[tier]!.market!;
-    for (const t of FOIL_PRIORITY) {
-      if (p[t]?.market != null) return p[t]!.market!;
+    if (foilType) {
+      return p[foilType]?.market ?? null;
     }
+    const available = FOIL_PRIORITY.map((t) => p[t]?.market).filter((v): v is number => v != null);
+    if (available.length > 0) return Math.min(...available);
   }
   return card.cardmarket?.prices?.trendPrice ?? null;
 }
