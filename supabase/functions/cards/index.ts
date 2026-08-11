@@ -20,7 +20,13 @@ Deno.serve(async (req) => {
 
       if (cached && cacheValid(cached.cached_at, SETS_TTL_MS)) return json(cached.data);
 
-      const data = await tcgFetch(`${TCG_BASE}/sets?orderBy=-releaseDate&pageSize=250`);
+      let data: unknown;
+      try {
+        data = await tcgFetch(`${TCG_BASE}/sets?orderBy=-releaseDate&pageSize=250`);
+      } catch (e) {
+        if (cached) return json({ ...cached.data, stale: true });
+        throw e;
+      }
       await supabase.from('sets_cache')
         .upsert({ cache_key: 'all_sets', data, cached_at: new Date().toISOString() });
       return json(data);
@@ -34,14 +40,21 @@ Deno.serve(async (req) => {
 
       if (cached && cacheValid(cached.cached_at)) return json(cached.data);
 
-      let page = 1, allCards: unknown[] = [], hasMore = true;
-      while (hasMore) {
-        const data = await tcgFetch(
-          `${TCG_BASE}/cards?q=set.id:${encodeURIComponent(setId)}&page=${page}&pageSize=250&orderBy=number`
-        ) as { data: unknown[] };
-        allCards = [...allCards, ...data.data];
-        hasMore = data.data.length === 250;
-        page++;
+      let allCards: unknown[];
+      try {
+        let page = 1, hasMore = true;
+        allCards = [];
+        while (hasMore) {
+          const data = await tcgFetch(
+            `${TCG_BASE}/cards?q=set.id:${encodeURIComponent(setId)}&page=${page}&pageSize=250&orderBy=number`
+          ) as { data: unknown[] };
+          allCards = [...allCards, ...data.data];
+          hasMore = data.data.length === 250;
+          page++;
+        }
+      } catch (e) {
+        if (cached) return json({ ...cached.data, stale: true });
+        throw e;
       }
 
       const result = { data: allCards, count: allCards.length };
@@ -70,7 +83,13 @@ Deno.serve(async (req) => {
 
       if (cached && cacheValid(cached.cached_at)) return json(cached.data);
 
-      const data = await tcgFetch(`${TCG_BASE}/cards/${cardId}`);
+      let data: unknown;
+      try {
+        data = await tcgFetch(`${TCG_BASE}/cards/${cardId}`);
+      } catch (e) {
+        if (cached) return json({ ...cached.data, stale: true });
+        throw e;
+      }
       await supabase.from('card_cache')
         .upsert({ id: cardId, data, cached_at: new Date().toISOString() });
       return json(data);
