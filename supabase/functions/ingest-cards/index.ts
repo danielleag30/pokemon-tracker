@@ -1,18 +1,22 @@
 /**
  * Fan-out card ingestion, one Pokémon TCG set per invocation. Claims a
- * pending/error row from ingest_queue (claim_next_ingest_set(), atomic via
- * FOR UPDATE SKIP LOCKED), pages that set's cards at PAGE_SIZE=250 (API
- * max, not the old scheme's 10), embeds and upserts into cards_vectors,
- * then self-invokes to claim the next set.
+ * pending/error/stale-processing row from ingest_queue
+ * (claim_next_ingest_set(), atomic via FOR UPDATE SKIP LOCKED, attempts
+ * incremented at claim time so a hard isolate kill still counts against
+ * the 5-attempt cap), pages that set's cards at PAGE_SIZE=250 (API max,
+ * not the old scheme's 10), embeds and upserts into cards_vectors, then
+ * self-invokes to claim the next set.
  *
- * On upstream fetch failure, retries with exponential backoff before
- * marking the row status='error' with last_error populated and attempts
- * incremented — never silently marks a failed set 'done'. That silent
- * failure is exactly what let the old ingest die at page 1,401/2,046 with
- * every row still reading 'done'. A stalled or dead self-invoke chain is
- * now detectable via ingest-check's coverage report (compares
- * cards_vectors against each set's upstream_total) rather than trusted
- * implicitly.
+ * Every failure path after a successful claim — fetch, a short/truncated
+ * page count, embedding, or the upsert — goes through one handler that
+ * marks the row 'error' with last_error populated and keeps the chain
+ * moving. No path may return with the row left in 'processing': that's
+ * exactly what let the original ingest die silently at page 1,401/2,046 in
+ * May (found in review before this ever ran: embedBatch() throwing had no
+ * catch of its own, which would have wedged the row in 'processing'
+ * forever — unclaimable, since claim_next_ingest_set() only picked up
+ * 'pending'/'error', and ingest-check's self-heal gate would see that one
+ * stuck row and refuse to ever nudge the chain again).
  *
  * POST {} — no body needed; claims whatever's next in the queue.
  */
@@ -72,7 +76,9 @@ async function fetchSetCardsOnce(setId: string): Promise<TCGCard[]> {
   let hasMore = true;
   while (hasMore) {
     const data = await tcgFetch(
-      `https://api.pokemontcg.io/v2/cards?q=set.id:${encodeURIComponent(setId)}&page=${page}&pageSize=${PAGE_SIZE}&orderBy=number`
+      // orderBy=id (not number) — number is a non-unique string upstream,
+      // not a total order, so a tie spanning a page boundary can drop cards.
+      `https://api.pokemontcg.io/v2/cards?q=set.id:${encodeURIComponent(setId)}&page=${page}&pageSize=${PAGE_SIZE}&orderBy=id`
     ) as { data: TCGCard[] };
     allCards = [...allCards, ...data.data];
     hasMore = data.data.length === PAGE_SIZE;
@@ -112,15 +118,6 @@ Deno.serve(async (req) => {
     }).catch(() => {});
   }
 
-  async function markFailed(queueId: string, attempts: number, message: string) {
-    await supabase.from('ingest_queue').update({
-      status: 'error',
-      last_error: message,
-      attempts: attempts + 1,
-      updated_at: new Date().toISOString(),
-    }).eq('id', queueId);
-  }
-
   try {
     const { data: claimedRows, error: claimErr } = await supabase.rpc('claim_next_ingest_set');
     if (claimErr) return err(claimErr.message);
@@ -128,68 +125,81 @@ Deno.serve(async (req) => {
     const claimed = claimedRows?.[0] as { id: string; set_id: string; upstream_total: number | null; attempts: number } | undefined;
     if (!claimed) return json({ done: true, message: 'No pending sets in ingest_queue' });
 
-    const { id: queueId, set_id: setId, attempts } = claimed;
+    const { id: queueId, set_id: setId, upstream_total: upstreamTotal } = claimed;
 
-    let cards: TCGCard[];
+    // Everything from here on operates on an already-claimed row. Any throw
+    // in this block — fetch, a short page count, embedding, or the upsert —
+    // must mark the row 'error' and keep the chain moving. This is the one
+    // handler for all of it; nothing after a successful claim may exit
+    // without going through here.
     try {
-      cards = await fetchSetCardsWithRetry(setId);
+      const cards = await fetchSetCardsWithRetry(setId);
+
+      if (cards.length === 0) {
+        throw new Error('Upstream returned 0 cards for this set');
+      }
+      // A 200 with a short/empty page mid-pagination (rather than a thrown
+      // error) would otherwise look "complete" — cross-check against the
+      // total this row was seeded with (same pattern as cards/index.ts's
+      // Phase 0 fix for the identical class of bug).
+      if (upstreamTotal != null && cards.length < upstreamTotal) {
+        throw new Error(`Incomplete fetch: got ${cards.length} of ${upstreamTotal} cards`);
+      }
+
+      const texts = cards.map(cardToText);
+      const embeddings = await embedBatch(texts);
+
+      const rows = cards.map((card, i) => ({
+        card_id: card.id,
+        name: card.name,
+        set_name: card.set.name,
+        set_id: card.set.id,
+        types: card.types ?? [],
+        supertype: card.supertype ?? null,
+        subtypes: card.subtypes ?? [],
+        rarity: card.rarity ?? null,
+        hp: card.hp ?? null,
+        evolves_from: card.evolvesFrom ?? null,
+        national_pokedex_numbers: card.nationalPokedexNumbers ?? [],
+        image_small: card.images.small,
+        image_large: card.images.large,
+        raw_data: card as unknown as Record<string, unknown>,
+        embedding: `[${embeddings[i].join(',')}]`,
+        indexed_at: new Date().toISOString(),
+      }));
+
+      const { error: upsertErr } = await supabase
+        .from('cards_vectors')
+        .upsert(rows, { onConflict: 'card_id' });
+      if (upsertErr) throw new Error(`Upsert failed: ${upsertErr.message}`);
+
+      const { error: doneErr } = await supabase.from('ingest_queue').update({
+        status: 'done',
+        ingested_count: rows.length,
+        last_error: null,
+        updated_at: new Date().toISOString(),
+      }).eq('id', queueId);
+      if (doneErr) console.error(`Failed to mark ${queueId} done (data is ingested; row state will self-correct via lease reclaim):`, doneErr.message);
+
+      selfInvokeNext();
+      return json({ setId, ingested: rows.length, upstreamTotal });
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'Unknown fetch error';
-      await markFailed(queueId, attempts, `Fetch failed: ${message}`);
+      const message = e instanceof Error ? e.message : 'Unknown error';
+      const { error: failErr } = await supabase.from('ingest_queue').update({
+        status: 'error',
+        last_error: message,
+        updated_at: new Date().toISOString(),
+      }).eq('id', queueId);
+      if (failErr) console.error(`Failed to mark ${queueId} error (will recover via 10-minute lease reclaim):`, failErr.message);
+
       selfInvokeNext(); // keep the chain moving to the next set regardless of this failure
-      return err(`Failed to fetch ${setId} after ${RETRY_BACKOFF_MS.length + 1} attempts: ${message}`);
+      return err(`Failed to ingest ${setId}: ${message}`);
     }
-
-    if (cards.length === 0) {
-      await markFailed(queueId, attempts, 'Upstream returned 0 cards for this set');
-      selfInvokeNext();
-      return err(`No cards returned for ${setId}`);
-    }
-
-    const texts = cards.map(cardToText);
-    const embeddings = await embedBatch(texts);
-
-    const rows = cards.map((card, i) => ({
-      card_id: card.id,
-      name: card.name,
-      set_name: card.set.name,
-      set_id: card.set.id,
-      types: card.types ?? [],
-      supertype: card.supertype ?? null,
-      subtypes: card.subtypes ?? [],
-      rarity: card.rarity ?? null,
-      hp: card.hp ?? null,
-      evolves_from: card.evolvesFrom ?? null,
-      national_pokedex_numbers: card.nationalPokedexNumbers ?? [],
-      image_small: card.images.small,
-      image_large: card.images.large,
-      raw_data: card as unknown as Record<string, unknown>,
-      embedding: `[${embeddings[i].join(',')}]`,
-      indexed_at: new Date().toISOString(),
-    }));
-
-    const { error: upsertErr } = await supabase
-      .from('cards_vectors')
-      .upsert(rows, { onConflict: 'card_id' });
-
-    if (upsertErr) {
-      await markFailed(queueId, attempts, `Upsert failed: ${upsertErr.message}`);
-      selfInvokeNext();
-      return err(upsertErr.message);
-    }
-
-    await supabase.from('ingest_queue').update({
-      status: 'done',
-      ingested_count: rows.length,
-      last_error: null,
-      updated_at: new Date().toISOString(),
-    }).eq('id', queueId);
-
-    selfInvokeNext();
-
-    return json({ setId, ingested: rows.length, upstreamTotal: claimed.upstream_total });
   } catch (e) {
-    console.error('Ingest error:', e);
+    // Only reachable if claim_next_ingest_set() itself failed (network/DB
+    // error before any row was claimed) — nothing to mark, nothing to
+    // self-invoke into since we don't know what, if anything, is claimable.
+    console.error('Ingest error (pre-claim):', e);
     return err(e instanceof Error ? e.message : 'Internal error');
   }
 });
