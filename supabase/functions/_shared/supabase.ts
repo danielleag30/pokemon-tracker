@@ -44,7 +44,19 @@ export function tcgHeaders(): Record<string, string> {
 
 export async function tcgFetch(url: string): Promise<unknown> {
   const res = await fetch(url, { headers: tcgHeaders() });
-  const data = await res.json();
-  if (!res.ok) throw new Error((data as { message?: string }).message ?? `TCG ${res.status}`);
-  return data;
+  // Check res.ok before parsing — upstream error responses (5xx especially)
+  // are often empty-bodied, and res.json() on an empty body throws
+  // "Unexpected end of JSON input", masking the actual HTTP status in
+  // every caller's error message and logs.
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    let message: string | undefined;
+    try {
+      message = text ? (JSON.parse(text) as { message?: string }).message : undefined;
+    } catch {
+      // body wasn't JSON — fall through to the status-based message below
+    }
+    throw new Error(message ?? `TCG ${res.status}`);
+  }
+  return res.json();
 }
