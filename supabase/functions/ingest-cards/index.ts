@@ -25,6 +25,7 @@
  */
 import { corsResponse, json, err } from '../_shared/cors.ts';
 import { makeClient, tcgFetch } from '../_shared/supabase.ts';
+import { TCGDEX_ONLY_SET_IDS } from '../_shared/tcgdex.ts';
 
 // 3. Supabase meters CPU **per worker isolate, not per request**, and the
 // isolate is reused across the self-invoke chain — so embedding cost
@@ -278,11 +279,20 @@ Deno.serve(async (req) => {
       // one SELECT instead of five inferences.
       const { data: existingRows, error: existErr } = await supabase
         .from('cards_vectors')
-        .select('card_id')
-        .in('card_id', cards.map((c) => c.id))
-        .not('embedding', 'is', null);
+        .select('card_id, data_source, embedding')
+        .in('card_id', cards.map((c) => c.id));
       if (existErr) throw new Error(`Existing-card lookup failed: ${existErr.message}`);
-      const alreadyEmbedded = new Set((existingRows ?? []).map((r) => r.card_id as string));
+
+      // Skip a card if it already has an embedding (nothing to redo), OR if it
+      // came from another source. The second half matters independently: this
+      // function only ever writes pokemontcg.io data, and TCGdex is the sole
+      // source for some sets, so overwriting one of those would silently
+      // destroy the only copy that exists.
+      const alreadyEmbedded = new Set(
+        (existingRows ?? [])
+          .filter((r) => r.embedding !== null || (r.data_source as string) !== 'pokemontcg')
+          .map((r) => r.card_id as string),
+      );
 
       const allToEmbed = cards.filter((c) => !alreadyEmbedded.has(c.id));
       // Cap actual embedding at CHUNK_SIZE regardless of how wide the scan
@@ -324,6 +334,12 @@ Deno.serve(async (req) => {
         raw_data: card as unknown as Record<string, unknown>,
         embedding: `[${embeddings[i].join(',')}]`,
         indexed_at: new Date().toISOString(),
+        // Sets seeded from TCGdex reach this function through set_cards_cache
+        // in normalized TCGCard form, so the payload itself is
+        // indistinguishable from a pokemontcg.io one. Label by set id, which
+        // is what makes those rows protected against a later primary-source
+        // re-ingest overwriting them.
+        data_source: TCGDEX_ONLY_SET_IDS.includes(setId) ? 'tcgdex' : 'pokemontcg',
       }));
 
       const { error: upsertErr } = await supabase
