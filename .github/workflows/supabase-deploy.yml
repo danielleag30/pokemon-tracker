@@ -30,6 +30,14 @@ jobs:
           supabase functions deploy admin      --no-verify-jwt
           supabase functions deploy ingest-cards --no-verify-jwt
           supabase functions deploy ingest-check --no-verify-jwt
+          # These were missing, so they only ever shipped via manual
+          # `supabase functions deploy` — future edits would have silently
+          # not deployed. refresh-prices in particular is invoked on a
+          # schedule, so a stale copy would keep running indefinitely.
+          supabase functions deploy refresh-prices --no-verify-jwt
+          supabase functions deploy auth --no-verify-jwt
+          supabase functions deploy tcgdex-seed --no-verify-jwt
+          supabase functions deploy tcgdex-backfill-prices --no-verify-jwt
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 

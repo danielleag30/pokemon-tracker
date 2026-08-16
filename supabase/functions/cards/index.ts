@@ -1,7 +1,56 @@
 import { corsResponse, json, err } from '../_shared/cors.ts';
 import { makeClient, cacheValid, tcgFetch, SETS_TTL_MS } from '../_shared/supabase.ts';
+import { TCGDEX_ONLY_SET_IDS } from '../_shared/tcgdex.ts';
 
 const TCG_BASE = 'https://api.pokemontcg.io/v2';
+
+/**
+ * Merge sets that exist only in TCGdex into the upstream set list.
+ *
+ * Without this, the Mega Evolution Black Star Promos are in the catalog and
+ * individually reachable but absent from the set list — so there is no way to
+ * navigate to them in the UI, which is the whole point of adding them. The
+ * set metadata is derived from what tcgdex-seed already wrote into
+ * set_cards_cache, so this needs no extra network call and stays consistent
+ * with the cards actually served.
+ */
+async function withTcgdexOnlySets(
+  supabase: ReturnType<typeof makeClient>,
+  setsPayload: unknown,
+): Promise<Record<string, unknown>> {
+  const payload = (setsPayload ?? {}) as { data?: Array<Record<string, unknown>> };
+  const existing = Array.isArray(payload.data) ? payload.data : [];
+  const present = new Set(existing.map((s) => s.id as string));
+  const missing = TCGDEX_ONLY_SET_IDS.filter((id) => !present.has(id));
+  if (missing.length === 0) return payload as Record<string, unknown>;
+
+  const { data: rows, error } = await supabase
+    .from('set_cards_cache').select('set_id, data, card_count').in('set_id', missing);
+  // Degrade to the plain upstream list rather than failing the whole endpoint:
+  // a missing extra set is worse UX than an error page, but only slightly.
+  if (error || !rows?.length) return payload as Record<string, unknown>;
+
+  const extras = rows.map((row) => {
+    const first = ((row.data as { data?: Array<Record<string, unknown>> })?.data ?? [])[0] ?? {};
+    const setMeta = (first.set ?? {}) as Record<string, unknown>;
+    return {
+      id: row.set_id,
+      name: setMeta.name ?? row.set_id,
+      series: setMeta.series ?? 'Other',
+      printedTotal: setMeta.printedTotal ?? row.card_count,
+      total: row.card_count,
+      releaseDate: setMeta.releaseDate ?? '',
+      images: setMeta.images ?? { symbol: '', logo: '' },
+    };
+  });
+
+  // Same -releaseDate ordering the upstream query requests, so the merged
+  // list stays in the order every consumer already expects.
+  const merged = [...existing, ...extras].sort((a, b) =>
+    String(b.releaseDate ?? '').localeCompare(String(a.releaseDate ?? '')));
+
+  return { ...payload, data: merged, totalCount: merged.length, count: merged.length };
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return corsResponse();
@@ -18,18 +67,23 @@ Deno.serve(async (req) => {
       const { data: cached } = await supabase
         .from('sets_cache').select('*').eq('cache_key', 'all_sets').single();
 
-      if (cached && cacheValid(cached.cached_at, SETS_TTL_MS)) return json(cached.data);
+      if (cached && cacheValid(cached.cached_at, SETS_TTL_MS)) {
+        return json(await withTcgdexOnlySets(supabase, cached.data));
+      }
 
       let data: unknown;
       try {
         data = await tcgFetch(`${TCG_BASE}/sets?orderBy=-releaseDate&pageSize=250`);
       } catch (e) {
-        if (cached) return json({ ...cached.data, stale: true });
+        if (cached) return json({ ...(await withTcgdexOnlySets(supabase, cached.data)), stale: true });
         throw e;
       }
+      // Cache the upstream response unmodified, and merge the extras on read.
+      // Persisting the merged list would mean the injected sets silently
+      // vanish on the next successful refresh from upstream.
       await supabase.from('sets_cache')
         .upsert({ cache_key: 'all_sets', data, cached_at: new Date().toISOString() });
-      return json(data);
+      return json(await withTcgdexOnlySets(supabase, data));
     }
 
     // GET /set/:setId

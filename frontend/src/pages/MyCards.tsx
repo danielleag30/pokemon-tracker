@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Search, Loader, Trash2, CheckSquare, Square, X } from 'lucide-react';
-import { useCollectionWithCards, useCollectionStats, useRemoveCard } from '../hooks/useCollection';
+import { useCollectionWithCards, useCollectionStats, useRemoveCard, usePricesUpdatedAt } from '../hooks/useCollection';
 import { getMarketPrice, formatPrice, getDefaultTier } from '../utils/prices';
 import { CardLightbox } from '../components/CardLightbox';
 import { STARTER_LINES, TYPE_DISPLAY_NAMES, REGIONS } from '../utils/constants';
@@ -12,6 +12,7 @@ type GroupBy = 'set' | 'series' | 'starter' | 'type' | 'evolution' | 'value';
 interface OwnedCard {
   entry: CollectionEntry;
   card: TCGCard;
+  pricesUpdatedAt: string | null;
 }
 
 // card is null when the catalog doesn't have this card_id yet (ingest gap,
@@ -19,6 +20,7 @@ interface OwnedCard {
 interface PendingCard {
   entry: CollectionEntry;
   card: null;
+  pricesUpdatedAt: string | null;
 }
 
 interface Group {
@@ -46,6 +48,7 @@ export function MyCards() {
   const { data: ownedCards, isLoading } = useCollectionWithCards();
   const { data: stats } = useCollectionStats();
   const removeCard = useRemoveCard();
+  const { oldest: pricesOldest, refreshedCount, totalCount: pricedTotal } = usePricesUpdatedAt();
 
   const allOwnedCards = ownedCards ?? [];
 
@@ -241,6 +244,13 @@ export function MyCards() {
           <p className="text-sm text-gray-500 mt-0.5">
             {allOwnedCards.length} card{allOwnedCards.length !== 1 ? 's' : ''} in your collection
             {selectedBinder && ` · ${filteredCards.length} in ${selectedBinder}`}
+          </p>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {refreshedCount === 0
+              ? 'Prices not yet refreshed'
+              : refreshedCount < pricedTotal
+                ? `Prices from ${pricesOldest!.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} · ${refreshedCount} of ${pricedTotal} refreshed`
+                : `Prices as of ${pricesOldest!.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`}
           </p>
         </div>
         <div className="flex gap-2">
@@ -451,14 +461,28 @@ export function MyCards() {
                   <div
                     key={entry.card_id}
                     className={`relative group/card cursor-pointer ${selectMode ? '' : 'cursor-zoom-in'} ${isSelected ? 'ring-2 ring-red-500 rounded-lg' : ''}`}
-                    onClick={() => selectMode ? toggleSelect(entry.card_id) : setLightbox({ entry, card })}
+                    onClick={() => selectMode ? toggleSelect(entry.card_id) : setLightbox({ entry, card, pricesUpdatedAt: null })}
                   >
-                    <img
-                      src={card.images.small}
-                      alt={card.name}
-                      className={`w-full rounded-lg shadow-sm transition-transform ${selectMode ? '' : 'hover:scale-105'} ${isSelected ? 'opacity-70' : ''}`}
-                      title={`${card.name} · ${card.set.name} #${card.number}${price != null ? ` · ${formatPrice(price)}` : ''}`}
-                    />
+                    {card.images?.small ? (
+                      <img
+                        src={card.images.small}
+                        alt={card.name}
+                        className={`w-full rounded-lg shadow-sm transition-transform ${selectMode ? '' : 'hover:scale-105'} ${isSelected ? 'opacity-70' : ''}`}
+                        title={`${card.name} · ${card.set.name} #${card.number}${price != null ? ` · ${formatPrice(price)}` : ''}`}
+                      />
+                    ) : (
+                      /* Some cards have no artwork available from their source
+                         (20 of the 60 Mega Evolution promos, for instance) —
+                         show the name rather than a broken image icon. */
+                      <div
+                        className={`w-full aspect-[5/7] rounded-lg shadow-sm bg-gray-100 border border-gray-200 flex items-center justify-center p-1 ${isSelected ? 'opacity-70' : ''}`}
+                        title={`${card.name} · ${card.set.name} #${card.number}${price != null ? ` · ${formatPrice(price)}` : ''}`}
+                      >
+                        <span className="text-[9px] leading-tight text-center text-gray-500 font-medium line-clamp-4">
+                          {card.name}
+                        </span>
+                      </div>
+                    )}
                     {/* Selection checkbox */}
                     {selectMode && (
                       <div className="absolute top-0.5 right-0.5">
