@@ -81,7 +81,13 @@ Deno.serve(async (req) => {
 
       const upserts = shortfalls
         .filter((g) => !active.has(g.set_id))
-        .map((g) => ({ id: g.set_id, set_id: g.set_id, upstream_total: g.upstream_total, status: 'pending', attempts: 0 }));
+        // ingested_count: 0 as well as attempts: 0 — the count is a read
+        // offset, so a set whose offset drifted out of sync with reality can
+        // only be repaired by re-scanning from the start. Leaving it in place
+        // made the "self-heal" re-queue a set that then resumed at the same
+        // bad offset and failed the same way. Re-scanning is cheap now that
+        // already-embedded cards are skipped rather than re-embedded.
+        .map((g) => ({ id: g.set_id, set_id: g.set_id, upstream_total: g.upstream_total, status: 'pending', attempts: 0, ingested_count: 0 }));
 
       if (upserts.length > 0) {
         const { error: upsertErr } = await supabase

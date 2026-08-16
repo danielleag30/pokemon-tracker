@@ -26,7 +26,16 @@
 import { corsResponse, json, err } from '../_shared/cors.ts';
 import { makeClient, tcgFetch } from '../_shared/supabase.ts';
 
-const CHUNK_SIZE = 10;
+// 3. Supabase meters CPU **per worker isolate, not per request**, and the
+// isolate is reused across the self-invoke chain — so embedding cost
+// accumulates until the worker trips. A worker retires gracefully once it
+// passes 50% of the 2s budget, but a request that carries it from just under
+// 50% to over 100% is hard-killed mid-flight (546, no catch, no chain
+// continuation, row stranded in 'processing'). That is exactly how the first
+// run died on a 10-card chunk. The chunk therefore has to be small enough
+// that a nearly-exhausted worker can still finish one: ~0.6s at 3 cards
+// against a ~1.0s worst-case remaining budget.
+const CHUNK_SIZE = 3;
 // pokemontcg.io measured at ~50% 5xx during this backlog run, so a chunk
 // needs several swings to land. 5 attempts puts per-chunk failure near 3%.
 // Backoff sums to 22s; with 5 requests on top this stays inside the 150s
@@ -128,33 +137,37 @@ async function loadChunk(
   setId: string,
   offset: number,
 ): Promise<{ cards: TCGCard[]; source: 'cache' | 'upstream' }> {
-  const { data, error } = await supabase.rpc('get_cached_card_chunk', {
-    p_set_id: setId,
-    p_offset: offset,
-    p_limit: CHUNK_SIZE,
-  });
+  // Pick the source ONCE per set and never switch mid-set. The two orderings
+  // are genuinely different — the cached array is in upstream's default
+  // (number-ish) order, while the API path uses lexicographic orderBy=id —
+  // and verification showed not one outstanding cached set is id-sorted. So
+  // switching sources at offset N reads a completely different slice and the
+  // cache-order cards at that offset are skipped for good. Deciding up front,
+  // and hard-failing instead of falling back, makes that unreachable.
+  const { count, error: cacheProbeErr } = await supabase
+    .from('set_cards_cache')
+    .select('set_id', { count: 'exact', head: true })
+    .eq('set_id', setId);
 
-  if (error) {
-    // Don't fail the chunk — upstream is still a valid path — but make the
-    // reason visible. A silent fallback here previously looked identical to
-    // "set isn't cached", which hid a PostgREST schema-cache miss.
-    console.error(`get_cached_card_chunk(${setId}, ${offset}) failed, falling back to upstream:`, error.message);
+  // A failed probe must NOT be read as "not cached" — that's the silent
+  // source-switch this guard exists to prevent. Fail the chunk instead; the
+  // row goes to 'error' and retries cleanly from the same offset.
+  if (cacheProbeErr) {
+    throw new Error(`Cache probe failed for ${setId}: ${cacheProbeErr.message}`);
   }
 
-  if (!error && Array.isArray(data) && data.length > 0) {
-    return { cards: data as TCGCard[], source: 'cache' };
-  }
+  const isCached = (count ?? 0) > 0;
 
-  // An empty cache result is ambiguous — either the set isn't cached at all,
-  // or we've paged past the end of a set that is. Distinguish before falling
-  // through, so a fully-ingested cached set doesn't pointlessly hit upstream
-  // (and risk a 5xx marking a healthy, complete set as errored).
-  if (!error && Array.isArray(data) && data.length === 0) {
-    const { count } = await supabase
-      .from('set_cards_cache')
-      .select('set_id', { count: 'exact', head: true })
-      .eq('set_id', setId);
-    if ((count ?? 0) > 0) return { cards: [], source: 'cache' }; // genuine end of a cached set
+  if (isCached) {
+    const { data, error } = await supabase.rpc('get_cached_card_chunk', {
+      p_set_id: setId,
+      p_offset: offset,
+      p_limit: CHUNK_SIZE,
+    });
+    // No upstream fallback here by design — see above. An empty array is the
+    // genuine end of the set, which the caller turns into the completion path.
+    if (error) throw new Error(`get_cached_card_chunk(${setId}, ${offset}) failed: ${error.message}`);
+    return { cards: (data ?? []) as TCGCard[], source: 'cache' };
   }
 
   const page = Math.floor(offset / CHUNK_SIZE) + 1;
@@ -249,9 +262,41 @@ Deno.serve(async (req) => {
         return json({ setId, setComplete: true, ingested: actual, upstreamTotal });
       }
 
-      const embeddings = await embedBatch(cards.map(cardToText));
+      // Embedding is the only CPU-expensive step and the sole reason for the
+      // 2s-per-request ceiling, so never re-embed a card that already has an
+      // embedding. This matters because partially-ingested sets are walked
+      // from offset 0 (the only gap-free way to resume without assuming the
+      // existing rows are an ordered prefix) — without this, ~3,600 already
+      // ingested cards would be re-embedded for nothing. Skipped chunks cost
+      // one SELECT instead of five inferences.
+      const { data: existingRows, error: existErr } = await supabase
+        .from('cards_vectors')
+        .select('card_id')
+        .in('card_id', cards.map((c) => c.id))
+        .not('embedding', 'is', null);
+      if (existErr) throw new Error(`Existing-card lookup failed: ${existErr.message}`);
+      const alreadyEmbedded = new Set((existingRows ?? []).map((r) => r.card_id as string));
 
-      const rows = cards.map((card, i) => ({
+      const toEmbed = cards.filter((c) => !alreadyEmbedded.has(c.id));
+
+      if (toEmbed.length === 0) {
+        // Whole chunk already present — just advance the offset. No upsert:
+        // rewriting raw_data here would clobber fresher prices that
+        // refresh-prices may have written since this card was ingested.
+        const skipCount = alreadyDone + cards.length;
+        await supabase.from('ingest_queue').update({
+          ingested_count: skipCount,
+          last_error: null,
+          updated_at: new Date().toISOString(),
+        }).eq('id', queueId);
+
+        if (!noChain) { await sleep(SELF_INVOKE_DELAY_MS); selfInvokeNext({ resumeSetId: queueId }); }
+        return json({ setId, chunk: page, source, skipped: cards.length, setProgress: `${skipCount}/${upstreamTotal ?? '?'}` });
+      }
+
+      const embeddings = await embedBatch(toEmbed.map(cardToText));
+
+      const rows = toEmbed.map((card, i) => ({
         card_id: card.id,
         name: card.name,
         set_name: card.set.name,

@@ -13,6 +13,33 @@ import { corsResponse, json, err } from '../_shared/cors.ts';
 import { makeClient, tcgFetch } from '../_shared/supabase.ts';
 
 const PAGE_SIZE = 250;
+const RETRY_BACKOFF_MS = [1000, 3000, 6000, 12000];
+const MAX_PAGE_GUARD = 500; // ~125k cards; a runaway-chain backstop
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Retry wrapper — pokemontcg.io has been measured at 20-50% 5xx. Without
+ *  this a single bad page killed the entire ~82-page chain, which is why
+ *  prices_updated_at was NULL on every row despite the cron firing on
+ *  schedule since May (confirmed in the 2026-08-14 Actions run: the job
+ *  reached the function fine and died on `{"error":"TCG 500"}`). */
+async function tcgFetchRetry(url: string): Promise<unknown> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= RETRY_BACKOFF_MS.length; attempt++) {
+    try {
+      return await tcgFetch(url);
+    } catch (e) {
+      lastError = e;
+      if (attempt < RETRY_BACKOFF_MS.length) {
+        const base = RETRY_BACKOFF_MS[attempt];
+        await sleep(base + Math.floor(Math.random() * base * 0.3));
+      }
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error('Unknown fetch error');
+}
 
 interface TCGCardPrice {
   id: string;
@@ -32,9 +59,34 @@ Deno.serve(async (req) => {
     const supabase = makeClient();
     const now = new Date().toISOString();
 
-    const data = await tcgFetch(
-      `https://api.pokemontcg.io/v2/cards?page=${page}&pageSize=${PAGE_SIZE}&orderBy=id`
-    ) as { data: TCGCardPrice[]; totalCount: number; count: number; pageSize: number };
+    function chainNext(nextPage: number) {
+      if (nextPage > MAX_PAGE_GUARD) return;
+      const selfUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/refresh-prices`;
+      fetch(selfUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+        },
+        body: JSON.stringify({ page: nextPage }),
+      }).catch(() => {});
+    }
+
+    let data: { data: TCGCardPrice[]; totalCount: number; count: number; pageSize: number };
+    try {
+      data = await tcgFetchRetry(
+        `https://api.pokemontcg.io/v2/cards?page=${page}&pageSize=${PAGE_SIZE}&orderBy=id`
+      ) as typeof data;
+    } catch (e) {
+      // Skip this page rather than killing the chain. Prices are advisory and
+      // the next scheduled run re-covers the same pages, so one unreachable
+      // page costs a few stale cards — whereas aborting costs every page
+      // after it, which is exactly how this silently never completed.
+      const message = e instanceof Error ? e.message : 'Unknown fetch error';
+      console.error(`refresh-prices page ${page} unrecoverable, skipping: ${message}`);
+      chainNext(page + 1);
+      return json({ page, skipped: true, error: message });
+    }
 
     const cards: TCGCardPrice[] = data.data ?? [];
     if (cards.length === 0) {
@@ -77,23 +129,16 @@ Deno.serve(async (req) => {
       );
       const failed = results.filter((r) => r.error);
       if (failed.length > 0) {
-        return err(`Update errors: ${failed.map((r) => r.error?.message).join('; ')}`);
+        // Same reasoning as the fetch failure above: report it, but keep the
+        // chain alive so one bad page can't strand every page after it.
+        console.error(`refresh-prices page ${page} had ${failed.length} update errors: ` +
+          failed.map((r) => r.error?.message).join('; '));
       }
-      updatedCount = updates.length;
+      updatedCount = updates.length - failed.length;
     }
 
     const hasMore = page * PAGE_SIZE < (data.totalCount ?? 0);
-    if (hasMore) {
-      const selfUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/refresh-prices`;
-      fetch(selfUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-        },
-        body: JSON.stringify({ page: page + 1 }),
-      }).catch(() => {});
-    }
+    if (hasMore) chainNext(page + 1);
 
     return json({
       page,
