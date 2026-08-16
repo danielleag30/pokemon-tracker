@@ -70,11 +70,12 @@ Deno.serve(async (req) => {
     let triggered = false;
 
     if (shortfalls.length > 0) {
-      // A 'processing' row past the same 10-minute lease window
-      // claim_next_ingest_set() uses is stale, not active — treating it as
-      // active here would let one stuck row permanently disable self-heal,
-      // the same failure mode the lease reclaim exists to prevent.
-      const staleBefore = new Date(Date.now() - 10 * 60_000).toISOString();
+      // A 'processing' row past the same lease window claim_next_ingest_set()
+      // uses is stale, not active — treating it as active here would let one
+      // stuck row permanently disable self-heal, the same failure mode the
+      // lease reclaim exists to prevent. Keep this in sync with the interval
+      // in that function (currently 3 minutes).
+      const staleBefore = new Date(Date.now() - 3 * 60_000).toISOString();
       const { data: activeRows } = await supabase
         .from('ingest_queue').select('id').eq('status', 'processing').gte('updated_at', staleBefore);
       const active = new Set((activeRows ?? []).map((r) => r.id as string));
