@@ -308,6 +308,7 @@ Deno.serve(async (req) => {
         await supabase.from('ingest_queue').update({
           ingested_count: skipCount,
           last_error: null,
+          attempts: 0, // forward progress — see the note on the embed path
           updated_at: new Date().toISOString(),
         }).eq('id', queueId);
 
@@ -363,6 +364,14 @@ Deno.serve(async (req) => {
       await supabase.from('ingest_queue').update({
         ingested_count: newCount,
         last_error: null,
+        // attempts is a CONSECUTIVE-failure counter, so forward progress
+        // clears it. It increments at claim time (so a hard CPU kill, which
+        // runs no application code, still counts), but chains die routinely
+        // from worker recycling and each restart costs a fresh claim — a
+        // large set would otherwise burn through the cap on normal
+        // interruptions and become permanently unclaimable despite never
+        // actually failing.
+        attempts: 0,
         updated_at: new Date().toISOString(),
       }).eq('id', queueId);
 
