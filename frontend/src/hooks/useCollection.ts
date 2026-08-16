@@ -88,6 +88,29 @@ export function useRemoveCard() {
   });
 }
 
+/**
+ * Most recent price refresh across the user's owned cards, or null if no card
+ * has ever been price-refreshed. Surfaced in the UI so a silently-failing
+ * refresh is visible — prices sat frozen from May to August because every
+ * scheduled run died on a single upstream error and nothing reported it.
+ */
+export function usePricesUpdatedAt(): { latest: Date | null; isLoading: boolean } {
+  const { data: ownedCards, isLoading } = useCollectionWithCards();
+
+  const latest = useMemo(() => {
+    if (!ownedCards) return null;
+    let max: number | null = null;
+    for (const { pricesUpdatedAt } of ownedCards) {
+      if (!pricesUpdatedAt) continue;
+      const t = new Date(pricesUpdatedAt).getTime();
+      if (!Number.isNaN(t) && (max === null || t > max)) max = t;
+    }
+    return max === null ? null : new Date(max);
+  }, [ownedCards]);
+
+  return { latest, isLoading };
+}
+
 export function useCollectionValue() {
   const { data: ownedCards, isLoading } = useCollectionWithCards();
 

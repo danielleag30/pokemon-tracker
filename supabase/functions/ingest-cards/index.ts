@@ -36,6 +36,13 @@ import { makeClient, tcgFetch } from '../_shared/supabase.ts';
 // that a nearly-exhausted worker can still finish one: ~0.6s at 3 cards
 // against a ~1.0s worst-case remaining budget.
 const CHUNK_SIZE = 3;
+// Already-embedded cards cost no CPU to skip, only a SELECT — so for cached
+// sets (which page by true SQL OFFSET and so tolerate any offset) we scan a
+// much wider window and skip in bulk, while still capping actual embedding at
+// CHUNK_SIZE. Partially-ingested sets must be walked from offset 0 to
+// guarantee no gaps; without this that walk dominated the runtime. Upstream
+// sets stay at CHUNK_SIZE because their paging is page-number based.
+const SCAN_WINDOW = 60;
 // pokemontcg.io measured at ~50% 5xx during this backlog run, so a chunk
 // needs several swings to land. 5 attempts puts per-chunk failure near 3%.
 // Backoff sums to 22s; with 5 requests on top this stays inside the 150s
@@ -162,7 +169,7 @@ async function loadChunk(
     const { data, error } = await supabase.rpc('get_cached_card_chunk', {
       p_set_id: setId,
       p_offset: offset,
-      p_limit: CHUNK_SIZE,
+      p_limit: SCAN_WINDOW,
     });
     // No upstream fallback here by design — see above. An empty array is the
     // genuine end of the set, which the caller turns into the completion path.
@@ -277,7 +284,11 @@ Deno.serve(async (req) => {
       if (existErr) throw new Error(`Existing-card lookup failed: ${existErr.message}`);
       const alreadyEmbedded = new Set((existingRows ?? []).map((r) => r.card_id as string));
 
-      const toEmbed = cards.filter((c) => !alreadyEmbedded.has(c.id));
+      const allToEmbed = cards.filter((c) => !alreadyEmbedded.has(c.id));
+      // Cap actual embedding at CHUNK_SIZE regardless of how wide the scan
+      // window was — the window exists to skip cheaply, not to embed more.
+      const toEmbed = allToEmbed.slice(0, CHUNK_SIZE);
+      const cappedOut = allToEmbed.length > CHUNK_SIZE;
 
       if (toEmbed.length === 0) {
         // Whole chunk already present — just advance the offset. No upsert:
@@ -320,7 +331,15 @@ Deno.serve(async (req) => {
         .upsert(rows, { onConflict: 'card_id' });
       if (upsertErr) throw new Error(`Upsert failed: ${upsertErr.message}`);
 
-      const newCount = alreadyDone + rows.length;
+      // Advance only as far as we've definitively handled. When the window
+      // held more new cards than CHUNK_SIZE, stop just past the last one we
+      // embedded so the remainder is revisited — advancing by the full window
+      // there would skip them permanently. When nothing was capped out, every
+      // card in the window is either newly embedded or already present, so
+      // the whole window is safe to clear (and this keeps the upstream path's
+      // page arithmetic aligned to CHUNK_SIZE).
+      const lastEmbeddedIdx = cards.findIndex((c) => c.id === toEmbed[toEmbed.length - 1].id);
+      const newCount = cappedOut ? alreadyDone + lastEmbeddedIdx + 1 : alreadyDone + cards.length;
 
       // Stay 'processing' with a refreshed updated_at — that keeps the lease
       // alive so the reclaim doesn't steal an actively-progressing set, while
