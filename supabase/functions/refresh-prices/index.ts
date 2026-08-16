@@ -115,26 +115,22 @@ Deno.serve(async (req) => {
 
     let updatedCount = 0;
     if (updates.length > 0) {
-      // Upsert with onConflict on card_id — only writes raw_data + prices_updated_at.
-      // Other columns (name, embedding, etc.) stay untouched because we don't include them.
-      // NOTE: Supabase upsert replaces the row, so to be safe we use individual updates
-      // for the subset of columns. Run them in parallel.
-      const results = await Promise.all(
-        updates.map((u) =>
-          supabase
-            .from('cards_vectors')
-            .update({ raw_data: u.raw_data, prices_updated_at: u.prices_updated_at })
-            .eq('card_id', u.card_id)
-        )
-      );
-      const failed = results.filter((r) => r.error);
-      if (failed.length > 0) {
-        // Same reasoning as the fetch failure above: report it, but keep the
-        // chain alive so one bad page can't strand every page after it.
-        console.error(`refresh-prices page ${page} had ${failed.length} update errors: ` +
-          failed.map((r) => r.error?.message).join('; '));
+      // One server-side statement instead of 250 parallel single-row updates.
+      // The RPC also enforces the two rules this function used to violate:
+      // never replace an existing cardmarket object with an upstream payload
+      // that has none (pokemontcg.io returns me3/me2pt5 with no pricing at
+      // all, which would have wiped the 419-card TCGdex backfill), and never
+      // touch a row whose data_source isn't 'pokemontcg'.
+      const { data: affected, error: rpcErr } = await supabase.rpc('refresh_card_prices', {
+        p_updates: updates.map((u) => ({ card_id: u.card_id, raw_data: u.raw_data })),
+      });
+      if (rpcErr) {
+        // Report but keep the chain alive — one bad page must not strand
+        // every page after it.
+        console.error(`refresh-prices page ${page} update failed: ${rpcErr.message}`);
+      } else {
+        updatedCount = typeof affected === 'number' ? affected : updates.length;
       }
-      updatedCount = updates.length - failed.length;
     }
 
     const hasMore = page * PAGE_SIZE < (data.totalCount ?? 0);

@@ -94,21 +94,39 @@ export function useRemoveCard() {
  * refresh is visible — prices sat frozen from May to August because every
  * scheduled run died on a single upstream error and nothing reported it.
  */
-export function usePricesUpdatedAt(): { latest: Date | null; isLoading: boolean } {
+export function usePricesUpdatedAt(): {
+  oldest: Date | null;
+  refreshedCount: number;
+  totalCount: number;
+  isLoading: boolean;
+} {
   const { data: ownedCards, isLoading } = useCollectionWithCards();
 
-  const latest = useMemo(() => {
-    if (!ownedCards) return null;
-    let max: number | null = null;
+  return useMemo(() => {
+    if (!ownedCards) return { oldest: null, refreshedCount: 0, totalCount: 0, isLoading };
+
+    // Deliberately the OLDEST, not the newest. The point of this indicator is
+    // to expose staleness, and MAX defeats that: a single freshly-priced card
+    // would make the whole collection read as current. Right now the 419
+    // backfilled cards would have masked everything else still sitting at its
+    // May value. The count alongside it shows how much is actually covered.
+    let min: number | null = null;
+    let refreshed = 0;
     for (const { pricesUpdatedAt } of ownedCards) {
       if (!pricesUpdatedAt) continue;
       const t = new Date(pricesUpdatedAt).getTime();
-      if (!Number.isNaN(t) && (max === null || t > max)) max = t;
+      if (Number.isNaN(t)) continue;
+      refreshed++;
+      if (min === null || t < min) min = t;
     }
-    return max === null ? null : new Date(max);
-  }, [ownedCards]);
 
-  return { latest, isLoading };
+    return {
+      oldest: min === null ? null : new Date(min),
+      refreshedCount: refreshed,
+      totalCount: ownedCards.length,
+      isLoading,
+    };
+  }, [ownedCards, isLoading]);
 }
 
 export function useCollectionValue() {

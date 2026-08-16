@@ -80,12 +80,25 @@ function normalizeSupertype(category?: string): string {
 
 /**
  * Card images. The API's `image` field is null for every MEP card, but the
- * conventional asset path does resolve — verified: real image/webp responses
- * of 90-135KB for mep-001/010/030. Built from serieId/setId/localId.
+ * conventional asset path resolves for most of them (real image/webp
+ * responses of 90-135KB). It does NOT resolve for all: 20 of MEP's 60 cards
+ * have no asset at any variant or extension (mep 032-036, 064-071, 074-080).
+ * Emitting a constructed URL for those produced a broken image in the UI, so
+ * `verifyImages` HEAD-checks and returns empty strings when nothing is there,
+ * letting consumers render a proper placeholder instead.
  */
 function buildImages(serieId: string, setId: string, localId: string) {
   const base = `${TCGDEX_ASSETS}/${serieId}/${setId}/${localId}`;
   return { small: `${base}/low.webp`, large: `${base}/high.webp` };
+}
+
+async function imageExists(url: string): Promise<boolean> {
+  try {
+    const res = await fetch(url, { method: 'HEAD' });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -137,7 +150,11 @@ export function normalizeTcgdexCard(
       id: set.id,
       name: set.name,
       series: set.serie?.name ?? 'Other',
-      printedTotal: set.cardCount?.official ?? set.cardCount?.total ?? 0,
+      // `||` not `??`: TCGdex reports cardCount.official = 0 for MEP, and ??
+      // preserves that 0 — which the set/series progress UI reads as "0
+      // cards", rendering the set as 0/0 (0%) and undercounting the Mega
+      // Evolution series by 60.
+      printedTotal: set.cardCount?.official || set.cardCount?.total || 0,
       total: set.cardCount?.total ?? 0,
       releaseDate: (set.releaseDate ?? '').replace(/-/g, '/'),
       images: { symbol: '', logo: '' },
@@ -173,7 +190,17 @@ export async function fetchNormalizedTcgdexSet(
   for (const ref of refs) {
     try {
       const full = await fetchTcgdexCard(ref.id);
-      cards.push(normalizeTcgdexCard(full, set));
+      const card = normalizeTcgdexCard(full, set);
+
+      // Don't ship a URL that 404s — 20 of MEP's 60 cards have no asset at
+      // any variant. Blank them so consumers can render a placeholder rather
+      // than a broken image.
+      const images = card.images as { small: string; large: string };
+      if (!(await imageExists(images.large))) {
+        card.images = { small: '', large: '' };
+      }
+
+      cards.push(card);
     } catch (e) {
       // Skip individual bad cards rather than losing the whole set; the
       // caller's count check surfaces any shortfall.
