@@ -1,4 +1,4 @@
-import { corsHeaders, corsResponse, json, err } from '../_shared/cors.ts';
+import { corsHeaders, corsResponse, json, err, serveWithCors } from '../_shared/cors.ts';
 import { makeUserClient } from '../_shared/supabase.ts';
 
 async function getUser(req: Request) {
@@ -11,7 +11,7 @@ async function getUser(req: Request) {
   return { uid: user.id, userClient };
 }
 
-Deno.serve(async (req) => {
+serveWithCors(async (req) => {
   if (req.method === 'OPTIONS') return corsResponse();
 
   const url = new URL(req.url);

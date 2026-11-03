@@ -9,7 +9,7 @@
  *
  * POST { page?: number }
  */
-import { corsResponse, json, err } from '../_shared/cors.ts';
+import { corsResponse, json, err, serveWithCors } from '../_shared/cors.ts';
 import { makeClient, tcgFetch } from '../_shared/supabase.ts';
 
 const PAGE_SIZE = 250;
@@ -21,7 +21,7 @@ interface TCGCardPrice {
   [k: string]: unknown;
 }
 
-Deno.serve(async (req) => {
+serveWithCors(async (req) => {
   if (req.method === 'OPTIONS') return corsResponse();
   if (req.method !== 'POST') return err('POST only', 405);
 

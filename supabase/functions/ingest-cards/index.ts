@@ -5,7 +5,7 @@
  *
  * POST { page?: number, setId?: string, forceRefresh?: boolean }
  */
-import { corsResponse, json, err } from '../_shared/cors.ts';
+import { corsResponse, json, err, serveWithCors } from '../_shared/cors.ts';
 import { makeClient, tcgFetch } from '../_shared/supabase.ts';
 
 const PAGE_SIZE = 10;
@@ -50,7 +50,7 @@ function cardToText(card: TCGCard): string {
   return parts.join(' ');
 }
 
-Deno.serve(async (req) => {
+serveWithCors(async (req) => {
   if (req.method === 'OPTIONS') return corsResponse();
   if (req.method !== 'POST') return err('POST only', 405);
 

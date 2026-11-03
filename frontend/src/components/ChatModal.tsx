@@ -6,6 +6,14 @@ import type { ChatMessage, ChatPageContext, TCGCard } from '../types';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySpeechRecognition = any;
 
+// WKWebView does not expose the Web Speech API at all -- it is Safari-only, not
+// iOS-wide -- so the mic button is dead weight in the native build. Checked as
+// a capability rather than a platform so it also hides in browsers without it.
+const SPEECH_SUPPORTED =
+  typeof window !== 'undefined' &&
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Boolean((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+
 interface Props {
   pageContext?: ChatPageContext;
 }
@@ -386,14 +394,16 @@ export function ChatModal({ pageContext }: Props) {
           className="flex-1 resize-none rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 max-h-24 overflow-y-auto"
           style={{ minHeight: '36px' }}
         />
-        <button
-          type="button"
-          onClick={toggleVoice}
-          className={`p-2 rounded-xl transition-colors flex-shrink-0 ${listening ? 'bg-red-100 text-red-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
-          aria-label={listening ? 'Stop recording' : 'Voice input'}
-        >
-          {listening ? <MicOff size={18} /> : <Mic size={18} />}
-        </button>
+        {SPEECH_SUPPORTED && (
+          <button
+            type="button"
+            onClick={toggleVoice}
+            className={`p-2 rounded-xl transition-colors flex-shrink-0 ${listening ? 'bg-red-100 text-red-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
+            aria-label={listening ? 'Stop recording' : 'Voice input'}
+          >
+            {listening ? <MicOff size={18} /> : <Mic size={18} />}
+          </button>
+        )}
         <button
           type="button"
           onClick={capturePhoto}
