@@ -30,7 +30,7 @@ export function ForgotPin() {
   }
 
   return (
-    <div className="min-h-screen bg-[#378ADD] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#378ADD] flex items-center justify-center px-4 safe-y">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-6">
           <img src="/pokeball.svg" alt="Pokéball" className="w-14 h-14 mb-3" />

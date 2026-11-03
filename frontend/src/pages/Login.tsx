@@ -55,7 +55,7 @@ export function Login() {
     : 'Forgot PIN?';
 
   return (
-    <div className="min-h-screen bg-[#378ADD] flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-[#378ADD] flex items-center justify-center px-4 safe-y relative overflow-x-hidden">
       {/* Pokéball watermark */}
       <div
         className="absolute inset-0 pointer-events-none select-none"
