@@ -1,4 +1,4 @@
-import { corsResponse, json, err } from '../_shared/cors.ts';
+import { corsResponse, json, err, serveWithCors } from '../_shared/cors.ts';
 import { makeClient, cacheValid, tcgFetch, SETS_TTL_MS } from '../_shared/supabase.ts';
 import { TCGDEX_ONLY_SET_IDS } from '../_shared/tcgdex.ts';
 
@@ -52,7 +52,7 @@ async function withTcgdexOnlySets(
   return { ...payload, data: merged, totalCount: merged.length, count: merged.length };
 }
 
-Deno.serve(async (req) => {
+serveWithCors(async (req) => {
   if (req.method === 'OPTIONS') return corsResponse();
 
   const url = new URL(req.url);

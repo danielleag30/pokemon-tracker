@@ -15,11 +15,11 @@
  *
  * POST { setId: "mep" }
  */
-import { corsResponse, json, err } from '../_shared/cors.ts';
+import { corsResponse, json, err, serveWithCors } from '../_shared/cors.ts';
 import { makeClient } from '../_shared/supabase.ts';
 import { fetchNormalizedTcgdexSet, TCGDEX_ONLY_SET_IDS } from '../_shared/tcgdex.ts';
 
-Deno.serve(async (req) => {
+serveWithCors(async (req) => {
   if (req.method === 'OPTIONS') return corsResponse();
   if (req.method !== 'POST') return err('POST only', 405);
 

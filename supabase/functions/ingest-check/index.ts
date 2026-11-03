@@ -12,7 +12,7 @@
  *         mid-flight, then the ingest-cards chain is nudged once if nothing
  *         is currently 'processing'. Called weekly by GitHub Actions cron.
  */
-import { corsResponse, json, err } from '../_shared/cors.ts';
+import { corsResponse, json, err, serveWithCors } from '../_shared/cors.ts';
 import { makeClient, tcgFetch } from '../_shared/supabase.ts';
 
 interface Gap {
@@ -23,7 +23,7 @@ interface Gap {
   gap: number;
 }
 
-Deno.serve(async (req) => {
+serveWithCors(async (req) => {
   if (req.method === 'OPTIONS') return corsResponse();
   if (req.method !== 'GET' && req.method !== 'POST') return err('GET or POST only', 405);
 

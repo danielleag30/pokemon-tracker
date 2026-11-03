@@ -17,7 +17,7 @@
  *
  * POST { setId, offset?, limit? }
  */
-import { corsResponse, json, err } from '../_shared/cors.ts';
+import { corsResponse, json, err, serveWithCors } from '../_shared/cors.ts';
 import { makeClient } from '../_shared/supabase.ts';
 import { fetchTcgdexCard } from '../_shared/tcgdex.ts';
 
@@ -33,7 +33,7 @@ function normalizeName(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
-Deno.serve(async (req) => {
+serveWithCors(async (req) => {
   if (req.method === 'OPTIONS') return corsResponse();
   if (req.method !== 'POST') return err('POST only', 405);
 

@@ -1,4 +1,4 @@
-import { corsHeaders, corsResponse, json, err } from '../_shared/cors.ts';
+import { corsHeaders, corsResponse, json, err, serveWithCors } from '../_shared/cors.ts';
 import { makeClient, makeAnonClient } from '../_shared/supabase.ts';
 
 // Username rules: 3–20 chars, letters/numbers/underscore only
@@ -8,7 +8,7 @@ function syntheticEmail(username: string): string {
   return `${username.toLowerCase()}@pokemontracker.app`;
 }
 
-Deno.serve(async (req) => {
+serveWithCors(async (req) => {
   if (req.method === 'OPTIONS') return corsResponse();
 
   const url = new URL(req.url);

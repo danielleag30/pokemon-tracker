@@ -23,7 +23,7 @@
  * POST {}                    -> claim the next set, start at its next chunk
  * POST { resumeSetId: "x" }  -> continue a set this chain already claimed
  */
-import { corsResponse, json, err } from '../_shared/cors.ts';
+import { corsResponse, json, err, serveWithCors } from '../_shared/cors.ts';
 import { makeClient, tcgFetch } from '../_shared/supabase.ts';
 import { TCGDEX_ONLY_SET_IDS } from '../_shared/tcgdex.ts';
 
@@ -182,7 +182,7 @@ async function loadChunk(
   return { cards: await fetchChunkUpstream(setId, page), source: 'upstream' };
 }
 
-Deno.serve(async (req) => {
+serveWithCors(async (req) => {
   if (req.method === 'OPTIONS') return corsResponse();
   if (req.method !== 'POST') return err('POST only', 405);
 
