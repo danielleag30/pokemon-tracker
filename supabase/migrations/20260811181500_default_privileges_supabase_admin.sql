@@ -1,0 +1,19 @@
+-- The 20260811160000 default-privileges fix only covered role `postgres`
+-- (whichever role ran that ALTER DEFAULT PRIVILEGES becomes the one it
+-- applies to). Discovered live: `supabase db push` creates migration
+-- objects under a context where supabase_admin's own default ACL for
+-- public applies, and pg_default_acl shows THAT still grants EXECUTE to
+-- PUBLIC/anon/authenticated — confirmed by claim_next_ingest_set() (created
+-- moments earlier by this same migration mechanism) being anon-executable
+-- despite the prior fix. This is the "residual" gap flagged in that fix's
+-- own review, now proven live rather than theoretical.
+--
+-- `ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin ...` was attempted here
+-- and failed with `permission denied to change default privileges` — the
+-- connecting role (even via the CLI/service role) isn't a member of
+-- supabase_admin and Supabase's managed platform doesn't expose a way to
+-- grant that. There is no root-cause fix available from the project side;
+-- every future CREATE FUNCTION in a migration must carry its own explicit
+-- REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated immediately after
+-- creation. Noted in the build plan for Phase 2/3, which both add RPCs.
+REVOKE EXECUTE ON FUNCTION public.claim_next_ingest_set() FROM PUBLIC, anon, authenticated;
