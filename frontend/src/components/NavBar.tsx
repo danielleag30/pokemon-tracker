@@ -3,12 +3,13 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Library, Layers, Star, Palette, GitBranch,
   AlertCircle, Copy, Menu, X, Plus, Search, BookOpen, BookMarked, LogOut,
-  MessageSquare, Shield
+  MessageSquare, Shield, Users
 } from 'lucide-react';
 import { BatchAddModal } from './BatchAddModal';
 import { SearchAddModal } from './SearchAddModal';
 import { FeedbackModal } from './FeedbackModal';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth, PinRequiredError } from '../contexts/AuthContext';
+import type { SavedAccount } from '../lib/accountStore';
 
 const links = [
   { to: '/',          label: 'Dashboard',     icon: LayoutDashboard },
@@ -24,16 +25,42 @@ const links = [
 ];
 
 export function NavBar() {
-  const { profile, isAdmin, logout } = useAuth();
+  const { profile, isAdmin, logout, savedAccounts, switchTo } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [showBatch, setShowBatch] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+  const [switchError, setSwitchError] = useState('');
+
+  const otherAccounts = savedAccounts.filter(
+    (a) => a.username.toLowerCase() !== (profile?.username ?? '').toLowerCase(),
+  );
 
   async function handleLogout() {
     await logout();
     navigate('/login', { replace: true });
+  }
+
+  async function handleSwitch(account: SavedAccount) {
+    setSwitchError('');
+    try {
+      await switchTo(account.username);
+      setSwitcherOpen(false);
+      setOpen(false);
+      navigate('/', { replace: true });
+    } catch (e) {
+      if (e instanceof PinRequiredError) {
+        // Admin account, or a stored session that no longer works: send them
+        // to sign-in with the username already filled in.
+        setSwitcherOpen(false);
+        setOpen(false);
+        navigate('/login', { state: { username: account.username } });
+        return;
+      }
+      setSwitchError(e instanceof Error ? e.message : 'Could not switch account');
+    }
   }
 
   return (
@@ -140,21 +167,59 @@ export function NavBar() {
           </button>
         </div>
 
-        {/* User section — replaces CollectionCode */}
-        <div className="px-4 py-3 border-t border-white/10 flex items-center justify-between">
-          <div className="min-w-0">
-            <p className="text-white/40 text-xs uppercase tracking-wide font-semibold">Signed in as</p>
-            <p className="text-white font-bold text-sm truncate mt-0.5">
-              {profile?.username ?? '…'}
-            </p>
+        {/* User section — signed-in identity, plus switching between accounts
+            that have signed in on this device */}
+        <div className="px-4 py-3 border-t border-white/10">
+          {switcherOpen && otherAccounts.length > 0 && (
+            <div className="mb-2 space-y-1">
+              {otherAccounts.map((account) => (
+                <button
+                  key={account.username}
+                  onClick={() => handleSwitch(account)}
+                  className="w-full bg-white/10 hover:bg-white/20 text-white text-sm font-medium py-2 px-3 rounded-xl flex items-center justify-between gap-2 transition-colors"
+                >
+                  <span className="truncate">{account.username}</span>
+                  {account.isAdmin && (
+                    <span className="text-[10px] uppercase tracking-wide text-white/50 flex-shrink-0">
+                      PIN
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {switchError && (
+            <p className="mb-2 text-xs text-red-200">{switchError}</p>
+          )}
+
+          <div className="flex items-center justify-between">
+            <div className="min-w-0">
+              <p className="text-white/40 text-xs uppercase tracking-wide font-semibold">Signed in as</p>
+              <p className="text-white font-bold text-sm truncate mt-0.5">
+                {profile?.username ?? '…'}
+              </p>
+            </div>
+            <div className="flex items-center gap-0.5 flex-shrink-0">
+              {otherAccounts.length > 0 && (
+                <button
+                  onClick={() => setSwitcherOpen((v) => !v)}
+                  title="Switch account"
+                  aria-expanded={switcherOpen}
+                  className="text-white/50 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-colors"
+                >
+                  <Users size={16} />
+                </button>
+              )}
+              <button
+                onClick={handleLogout}
+                title="Sign out"
+                className="text-white/50 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-colors"
+              >
+                <LogOut size={16} />
+              </button>
+            </div>
           </div>
-          <button
-            onClick={handleLogout}
-            title="Sign out"
-            className="text-white/50 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-colors flex-shrink-0"
-          >
-            <LogOut size={16} />
-          </button>
         </div>
       </aside>
 

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { Delete, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -16,7 +17,10 @@ export function Login() {
   const { login, profile } = useAuth();
   const navigate = useNavigate();
 
-  const [username, setUsername] = useState('');
+  // A switch into an admin account routes here for the PIN and passes the
+  // username along, so only the PIN has to be typed.
+  const prefill = (useLocation().state as { username?: string } | null)?.username ?? '';
+  const [username, setUsername] = useState(prefill);
   const [pin, setPin] = useState('');
   const [showPin, setShowPin] = useState(false);
   const [error, setError] = useState('');
