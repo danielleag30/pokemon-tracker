@@ -5,10 +5,10 @@
  *
  * POST {} — called by GitHub Actions weekly cron
  */
-import { corsResponse, json, err } from '../_shared/cors.ts';
+import { corsResponse, json, err, serveWithCors } from '../_shared/cors.ts';
 import { makeClient, tcgFetch } from '../_shared/supabase.ts';
 
-Deno.serve(async (req) => {
+serveWithCors(async (req) => {
   if (req.method === 'OPTIONS') return corsResponse();
   if (req.method !== 'POST') return err('POST only', 405);
 

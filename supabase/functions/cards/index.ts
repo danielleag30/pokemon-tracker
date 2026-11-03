@@ -1,9 +1,9 @@
-import { corsResponse, json, err } from '../_shared/cors.ts';
+import { corsResponse, json, err, serveWithCors } from '../_shared/cors.ts';
 import { makeClient, cacheValid, tcgFetch, SETS_TTL_MS } from '../_shared/supabase.ts';
 
 const TCG_BASE = 'https://api.pokemontcg.io/v2';
 
-Deno.serve(async (req) => {
+serveWithCors(async (req) => {
   if (req.method === 'OPTIONS') return corsResponse();
 
   const url = new URL(req.url);

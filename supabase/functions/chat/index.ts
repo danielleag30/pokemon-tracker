@@ -1,4 +1,4 @@
-import { corsResponse, json, err } from '../_shared/cors.ts';
+import { corsResponse, json, err, serveWithCors } from '../_shared/cors.ts';
 import { makeUserClient, makeClient } from '../_shared/supabase.ts';
 
 const OLLAMA_URL   = () => Deno.env.get('OLLAMA_CLOUD_URL')   ?? 'https://api.ollama.com/v1';
@@ -167,7 +167,7 @@ function formatCard(
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 
-Deno.serve(async (req) => {
+serveWithCors(async (req) => {
   if (req.method === 'OPTIONS') return corsResponse();
 
   const url  = new URL(req.url);
