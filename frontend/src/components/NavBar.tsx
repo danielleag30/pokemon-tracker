@@ -2,14 +2,14 @@ import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Library, Layers, Star, Palette, GitBranch,
-  AlertCircle, Copy, Menu, X, Plus, Search, BookOpen, BookMarked, LogOut,
+  AlertCircle, Copy, Plus, Search, BookOpen, BookMarked, LogOut,
   MessageSquare, Shield, Users
 } from 'lucide-react';
 import { BatchAddModal } from './BatchAddModal';
 import { SearchAddModal } from './SearchAddModal';
 import { FeedbackModal } from './FeedbackModal';
-import { useAuth, PinRequiredError } from '../contexts/AuthContext';
-import type { SavedAccount } from '../lib/accountStore';
+import { useAuth } from '../contexts/AuthContext';
+import { useAccountSwitcher } from '../hooks/useAccountSwitcher';
 
 const links = [
   { to: '/',          label: 'Dashboard',     icon: LayoutDashboard },
@@ -25,78 +25,34 @@ const links = [
 ];
 
 export function NavBar() {
-  const { profile, isAdmin, logout, savedAccounts, switchTo } = useAuth();
+  const { profile, isAdmin, logout } = useAuth();
   const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
   const [showBatch, setShowBatch] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [switcherOpen, setSwitcherOpen] = useState(false);
-  const [switchError, setSwitchError] = useState('');
-
-  const otherAccounts = savedAccounts.filter(
-    (a) => a.username.toLowerCase() !== (profile?.username ?? '').toLowerCase(),
-  );
+  const { otherAccounts, switchAccount, error: switchError } =
+    useAccountSwitcher(() => setSwitcherOpen(false));
 
   async function handleLogout() {
     await logout();
     navigate('/login', { replace: true });
   }
 
-  async function handleSwitch(account: SavedAccount) {
-    setSwitchError('');
-    try {
-      await switchTo(account.username);
-      setSwitcherOpen(false);
-      setOpen(false);
-      navigate('/', { replace: true });
-    } catch (e) {
-      if (e instanceof PinRequiredError) {
-        // Admin account, or a stored session that no longer works: send them
-        // to sign-in with the username already filled in.
-        setSwitcherOpen(false);
-        setOpen(false);
-        navigate('/login', { state: { username: account.username } });
-        return;
-      }
-      setSwitchError(e instanceof Error ? e.message : 'Could not switch account');
-    }
-  }
-
   return (
     <>
-      {/* Mobile top bar */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-pokemon-nav flex items-center justify-between px-4 py-3 safe-top shadow-lg">
-        <div className="flex items-center gap-2">
-          <img src="/pokeball.svg" alt="Pokeball" className="w-7 h-7" />
+      {/* Phone/tablet top bar. Navigation lives in the bottom TabBar, so
+          this is just the app's name. */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-pokemon-nav safe-top">
+        <div className="h-14 flex items-center justify-center gap-2">
+          <img src="/pokeball.svg" alt="" className="w-7 h-7" />
           <span className="text-white font-bold text-lg tracking-tight">PokeTracker</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowSearch(true)}
-            className="bg-pokemon-yellow text-pokemon-dark text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1"
-          >
-            <Plus size={12} /> Add Card
-          </button>
-          <button onClick={() => setOpen(!open)} className="text-white p-1">
-            {open ? <X size={22} /> : <Menu size={22} />}
-          </button>
         </div>
       </div>
 
-      {/* Mobile overlay */}
-      {open && (
-        <div
-          className="lg:hidden fixed inset-0 z-30 bg-black/50"
-          onClick={() => setOpen(false)}
-        />
-      )}
-
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-full z-40 w-64 bg-pokemon-nav flex flex-col safe-top transition-transform duration-300
-          lg:translate-x-0 lg:static lg:flex
-          ${open ? 'translate-x-0' : '-translate-x-full'}`}
+        className="hidden lg:flex lg:static h-full w-64 bg-pokemon-nav flex-col safe-top"
       >
         <div className="p-5 flex items-center gap-3 border-b border-white/10">
           <img src="/pokeball.svg" alt="Pokeball" className="w-9 h-9" />
@@ -112,7 +68,6 @@ export function NavBar() {
               key={to}
               to={to}
               end={to === '/'}
-              onClick={() => setOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   isActive
@@ -128,7 +83,6 @@ export function NavBar() {
           {isAdmin && (
             <NavLink
               to="/admin"
-              onClick={() => setOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   isActive
@@ -145,13 +99,13 @@ export function NavBar() {
 
         <div className="p-4 border-t border-white/10 space-y-2">
           <button
-            onClick={() => { setShowSearch(true); setOpen(false); }}
+            onClick={() => setShowSearch(true)}
             className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-2 rounded-xl text-sm flex items-center justify-center gap-1.5 transition-colors"
           >
             <Search size={14} /> Search & Add Card
           </button>
           <button
-            onClick={() => { setShowBatch(true); setOpen(false); }}
+            onClick={() => setShowBatch(true)}
             className="w-full bg-pokemon-yellow hover:bg-yellow-400 text-pokemon-dark font-bold py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors"
           >
             <Plus size={16} /> Batch Add Cards
@@ -160,7 +114,7 @@ export function NavBar() {
 
         <div className="px-4 pb-3">
           <button
-            onClick={() => { setShowFeedback(true); setOpen(false); }}
+            onClick={() => setShowFeedback(true)}
             className="w-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white font-medium py-2 rounded-xl text-sm flex items-center justify-center gap-1.5 transition-colors"
           >
             <MessageSquare size={14} /> Send Feedback
@@ -175,7 +129,7 @@ export function NavBar() {
               {otherAccounts.map((account) => (
                 <button
                   key={account.username}
-                  onClick={() => handleSwitch(account)}
+                  onClick={() => switchAccount(account)}
                   className="w-full bg-white/10 hover:bg-white/20 text-white text-sm font-medium py-2 px-3 rounded-xl flex items-center justify-between gap-2 transition-colors"
                 >
                   <span className="truncate">{account.username}</span>

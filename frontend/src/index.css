@@ -101,6 +101,37 @@
       padding-top: 0;
     }
   }
+
+  /* Room for the bottom TabBar (4rem) plus the home indicator, so the last
+     row of a page is not hidden under it. Desktop has no tab bar. */
+  .pb-tabbar-safe {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+  }
+  .mb-tabbar-safe {
+    margin-bottom: calc(4rem + env(safe-area-inset-bottom));
+  }
+  /* The chat panel sits above the tab bar, so it has that much less height. */
+  .chat-max-h {
+    max-height: calc(100dvh - 10rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+  @media (min-width: 1024px) {
+    .pb-tabbar-safe {
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .mb-tabbar-safe {
+      margin-bottom: env(safe-area-inset-bottom);
+    }
+    .chat-max-h {
+      max-height: calc(100vh - 6rem);
+    }
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 /* ── Pokeball chat button animations ─────────────────────────────────────── */

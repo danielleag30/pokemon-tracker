@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
 import { ConfirmProvider } from './contexts/ConfirmContext';
@@ -22,6 +22,8 @@ import { Duplicates } from './pages/Duplicates';
 import { MyCards } from './pages/MyCards';
 import { Pokedex } from './pages/Pokedex';
 import { Admin } from './pages/Admin';
+import { Me } from './pages/Me';
+import { SectionTabs } from './components/SectionTabs';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -69,16 +71,28 @@ export function App() {
               }
             >
               <Route index element={<Dashboard />} />
-              <Route path="series" element={<BySeries />} />
-              <Route path="series/:seriesSlug" element={<BySeries />} />
-              <Route path="starters" element={<ByStarter />} />
-              <Route path="type" element={<ByType />} />
-              <Route path="evolution" element={<ByEvolutionStage />} />
-              <Route path="sets" element={<BySet />} />
-              <Route path="my-cards" element={<MyCards />} />
-              <Route path="pokedex" element={<Pokedex />} />
-              <Route path="missing" element={<MissingCards />} />
-              <Route path="duplicates" element={<Duplicates />} />
+
+              {/* Browse tab: every "By ___" view plus the Pokédex. URLs are
+                  unchanged; SectionTabs adds the pill row on phones. */}
+              <Route element={<SectionTabs section="browse" />}>
+                <Route path="sets" element={<BySet />} />
+                <Route path="series" element={<BySeries />} />
+                <Route path="series/:seriesSlug" element={<BySeries />} />
+                <Route path="starters" element={<ByStarter />} />
+                <Route path="type" element={<ByType />} />
+                <Route path="evolution" element={<ByEvolutionStage />} />
+                <Route path="pokedex" element={<Pokedex />} />
+              </Route>
+              <Route path="browse" element={<Navigate to="/sets" replace />} />
+
+              {/* My Cards tab: the collection, Duplicates and Missing. */}
+              <Route element={<SectionTabs section="collection" />}>
+                <Route path="my-cards" element={<MyCards />} />
+                <Route path="duplicates" element={<Duplicates />} />
+                <Route path="missing" element={<MissingCards />} />
+              </Route>
+
+              <Route path="me" element={<Me />} />
               <Route path="admin" element={<Admin />} />
             </Route>
           </Routes>

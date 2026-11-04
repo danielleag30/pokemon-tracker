@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { X, BookOpen, Trash2, Plus, Minus } from 'lucide-react';
 import { TypeBadge } from './TypeBadge';
 import { getMarketPrice, formatPrice, getAvailableTiers } from '../utils/prices';
 import { useUpdateCard, useRemoveCard, useCollectionStats } from '../hooks/useCollection';
 import { FOIL_LABELS, type FoilType } from '../types';
 import { useConfirm } from '../contexts/ConfirmContext';
+import { Sheet } from './Sheet';
 import type { TCGCard, CollectionEntry } from '../types';
 
 interface Props {
@@ -28,12 +29,6 @@ export function CardLightbox({ card, entry, onClose }: Props) {
   const [foilType, setFoilType] = useState<FoilType | null>(entry?.foil_type ?? null);
   const price = getMarketPrice(card, foilType);
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [onClose]);
-
   const handleBinderSave = () => {
     if (!entry) return;
     updateCard.mutate(
@@ -52,15 +47,8 @@ export function CardLightbox({ card, entry, onClose }: Props) {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto animate-fade-in"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between p-4 border-b">
+    <Sheet onClose={onClose} width="md" scroll label={card.name}>
+        <div data-sheet-handle className="flex items-center justify-between px-4 pb-3 pt-1 sm:p-4 border-b">
           <div>
             <h2 className="font-bold text-gray-800">{card.name}</h2>
             <p className="text-xs text-gray-500">{card.set.name} · #{card.number}</p>
@@ -222,7 +210,6 @@ export function CardLightbox({ card, entry, onClose }: Props) {
             </button>
           </div>
         )}
-      </div>
-    </div>
+    </Sheet>
   );
 }

@@ -8,6 +8,7 @@ import { FOIL_LABELS, type FoilType } from '../types';
 import { ProgressBar } from './ProgressBar';
 import { REGIONS, SERIES_TO_REGION } from '../utils/constants';
 import { cardsApi } from '../utils/api';
+import { Sheet } from './Sheet';
 import type { TCGCard } from '../types';
 
 type Mode = 'set' | 'series' | 'type' | 'search';
@@ -238,11 +239,10 @@ export function BatchAddModal({ onClose }: Props) {
     (mode === 'search' && searchResults.length > 0);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col animate-fade-in">
+    <Sheet onClose={onClose} width="xl" label="Add a bunch of cards">
 
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
+        <div data-sheet-handle className="flex items-center justify-between px-4 pb-3 pt-1 sm:p-4 border-b">
           <h2 className="text-lg font-bold text-gray-800">Batch Add Cards</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
             <X size={20} />
@@ -444,7 +444,7 @@ export function BatchAddModal({ onClose }: Props) {
         </div>
 
         {/* Card list */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4">
           {isLoading && (
             <div className="flex items-center justify-center py-12 text-gray-500">
               <Loader size={20} className="animate-spin mr-2" />
@@ -521,7 +521,6 @@ export function BatchAddModal({ onClose }: Props) {
             </button>
           </div>
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }
