@@ -15,6 +15,35 @@
 import { corsResponse, json, err, serveWithCors } from '../_shared/cors.ts';
 import { makeClient, tcgFetch } from '../_shared/supabase.ts';
 
+// Mirrors the backoff in ingest-cards' fetchChunkUpstream. pokemontcg.io
+// returns intermittent 500s and 502s -- observed 7 failures in 8 consecutive
+// calls during one window -- and this is a single unprotected request, so one
+// blip failed the entire weekly coverage check and no shortfall was ever
+// queued. Jitter avoids a synchronized retry stampede with the ingest chain.
+const RETRY_BACKOFF_MS = [1000, 3000, 6000, 12000];
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchSetsWithRetry(): Promise<{ data: Array<{ id: string; name: string; total: number }> }> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= RETRY_BACKOFF_MS.length; attempt++) {
+    try {
+      return await tcgFetch(
+        'https://api.pokemontcg.io/v2/sets?orderBy=-releaseDate&pageSize=250'
+      ) as { data: Array<{ id: string; name: string; total: number }> };
+    } catch (e) {
+      lastError = e;
+      if (attempt < RETRY_BACKOFF_MS.length) {
+        const base = RETRY_BACKOFF_MS[attempt];
+        await sleep(base + Math.floor(Math.random() * base * 0.3));
+      }
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error('Unknown sets fetch error');
+}
+
 interface Gap {
   set_id: string;
   name: string;
@@ -30,9 +59,7 @@ serveWithCors(async (req) => {
   try {
     const supabase = makeClient();
 
-    const setsData = await tcgFetch(
-      'https://api.pokemontcg.io/v2/sets?orderBy=-releaseDate&pageSize=250'
-    ) as { data: Array<{ id: string; name: string; total: number }> };
+    const setsData = await fetchSetsWithRetry();
     const sets = setsData.data ?? [];
 
     // Aggregated server-side via ingest_coverage_by_set() — a plain
