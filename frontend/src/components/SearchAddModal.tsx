@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Search, Loader, Plus, Minus, CheckCircle } from 'lucide-react';
 import { useCardSearch } from '../hooks/useCards';
 import { useAddCard } from '../hooks/useCollection';
+import { Sheet } from './Sheet';
 import type { TCGCard } from '../types';
 
 interface Props {
@@ -46,9 +47,8 @@ export function SearchAddModal({ onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-fade-in">
-        <div className="flex items-center justify-between p-4 border-b">
+    <Sheet onClose={onClose} width="lg" label="Find a card">
+        <div data-sheet-handle className="flex items-center justify-between px-4 pb-3 pt-1 sm:p-4 border-b">
           <h2 className="text-lg font-bold text-gray-800">Search & Add Card</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
             <X size={20} />
@@ -70,7 +70,7 @@ export function SearchAddModal({ onClose }: Props) {
         </div>
 
         {selectedCard ? (
-          <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center">
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 flex flex-col items-center">
             <img
               src={selectedCard.images.large}
               alt={selectedCard.name}
@@ -113,7 +113,7 @@ export function SearchAddModal({ onClose }: Props) {
             </div>
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4">
             {isLoading && (
               <div className="flex items-center justify-center py-12 text-gray-500">
                 <Loader size={20} className="animate-spin mr-2" /> Searching…
@@ -182,7 +182,6 @@ export function SearchAddModal({ onClose }: Props) {
             </button>
           )}
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }
