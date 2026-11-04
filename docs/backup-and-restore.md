@@ -30,6 +30,21 @@ password manager** — without it the backups are unreadable. If you lose it, ro
 the secret and the next nightly run produces a readable backup again; older
 artifacts stay locked forever.
 
+## Before you can restore: install two tools
+
+Neither ships with macOS, and a restore drill on 2026-11-03 found both missing —
+which meant the backups were technically unreadable on this machine. Install them
+*now*, not during an incident:
+
+```bash
+brew install gnupg libpq
+brew link --force libpq
+```
+
+`gpg` decrypts the artifact; `psql` loads it. `psql` must be reasonably current:
+the dump contains `\restrict` / `\unrestrict` directives (introduced by the
+pg_dump fix for CVE-2025-8714) that older versions will choke on.
+
 ## Restoring
 
 ```bash
@@ -67,6 +82,11 @@ postgresql://postgres.wmwpjkfgapqyyjsjuhos:PASSWORD@aws-1-us-west-2.pooler.supab
 The workflow refuses to publish a backup if `collection` is empty, or if the row
 count in the dump does not match the live table. A silently-empty backup that looks
 green on the Actions tab is worse than no backup at all, so the job fails loudly instead.
+
+Verified end-to-end on 2026-11-03 (run 41714545591): guard reported
+`live rows: 1216 / rows in dump: 1216`; the 18 KB artifact decrypted to 151 KB of
+SQL containing all 5 tables, 5 primary keys, 5 foreign keys, 4 indexes, and 9 RLS
+policies — matching the live schema exactly.
 
 ## Known limits
 
