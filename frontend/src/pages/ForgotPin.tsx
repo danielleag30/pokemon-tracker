@@ -30,7 +30,7 @@ export function ForgotPin() {
   }
 
   return (
-    <div className="min-h-screen bg-[#378ADD] flex items-center justify-center px-4 safe-y">
+    <div className="min-h-screen bg-pokemon-nav flex items-center justify-center px-4 safe-y">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-6">
           <img src="/pokeball.svg" alt="Pokéball" className="w-14 h-14 mb-3" />
@@ -47,7 +47,7 @@ export function ForgotPin() {
               </p>
               <Link
                 to="/login"
-                className="block w-full bg-[#378ADD] text-white font-bold py-3 rounded-2xl text-center hover:bg-blue-600 transition-colors"
+                className="block w-full bg-pokemon-yellow text-pokemon-dark font-bold py-3 rounded-2xl text-center hover:bg-yellow-400 transition-colors"
               >
                 Back to Sign In
               </Link>
@@ -69,7 +69,7 @@ export function ForgotPin() {
                   placeholder="Your username"
                   autoComplete="username"
                   autoCapitalize="none"
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#378ADD]"
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-pokemon-blue"
                 />
               </div>
 
@@ -78,14 +78,14 @@ export function ForgotPin() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-[#378ADD] text-white font-bold py-3.5 rounded-2xl text-base hover:bg-blue-600 transition-colors disabled:opacity-40"
+                className="w-full bg-pokemon-yellow text-pokemon-dark font-bold py-3.5 rounded-2xl text-base hover:bg-yellow-400 transition-colors disabled:opacity-40"
               >
                 {loading ? 'Sending…' : 'Send Reset Link'}
               </button>
 
               <Link
                 to="/login"
-                className="block text-center text-sm text-gray-400 hover:text-[#378ADD] transition-colors"
+                className="block text-center text-sm text-gray-400 hover:text-pokemon-blue transition-colors"
               >
                 ← Back to Sign In
               </Link>

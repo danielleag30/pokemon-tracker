@@ -148,7 +148,7 @@ export function BySet() {
                   <ProgressBar
                     value={owned}
                     max={set.printedTotal}
-                    color={region?.color ?? '#3B4CCA'}
+                    color={region?.color ?? '#4169E1'}
                     height="sm"
                   />
                 </button>
@@ -199,7 +199,7 @@ export function BySet() {
           <ProgressBar
             value={ownedInSet}
             max={allCards.length}
-            color={region?.color ?? '#3B4CCA'}
+            color={region?.color ?? '#4169E1'}
             label={`${selectedSet.name} completion`}
           />
         </div>

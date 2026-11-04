@@ -135,7 +135,7 @@ function SkeletonRows({ count = 5 }: { count?: number }) {
 
 // ── SVG Bar chart ──────────────────────────────────────────────────────────────
 
-function BarChart({ data, xKey, yKey, color = '#378ADD' }: {
+function BarChart({ data, xKey, yKey, color = '#4169E1' }: {
   data: Record<string, unknown>[]
   xKey: string
   yKey: string

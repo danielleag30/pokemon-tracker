@@ -55,7 +55,7 @@ export function Login() {
     : 'Forgot PIN?';
 
   return (
-    <div className="min-h-screen bg-[#378ADD] flex items-center justify-center px-4 safe-y relative overflow-x-hidden">
+    <div className="min-h-screen bg-pokemon-nav flex items-center justify-center px-4 safe-y relative overflow-x-hidden">
       {/* Pokéball watermark */}
       <div
         className="absolute inset-0 pointer-events-none select-none"
@@ -73,7 +73,7 @@ export function Login() {
         {/* Logo */}
         <div className="flex flex-col items-center mb-6">
           <img src="/pokeball.svg" alt="Pokéball" className="w-16 h-16 mb-3" />
-          <h1 className="text-white font-black text-3xl tracking-tight">PokeTracker</h1>
+          <h1 className="text-white font-black text-3xl tracking-tight">PokéTracker</h1>
           <p className="text-white/70 text-sm mt-1">Sign in to your collection</p>
         </div>
 
@@ -92,7 +92,7 @@ export function Login() {
               placeholder="Your username"
               autoComplete="username"
               autoCapitalize="none"
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#378ADD]/40 focus:border-[#378ADD]"
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-pokemon-blue/40 focus:border-pokemon-blue"
             />
           </div>
 
@@ -105,7 +105,7 @@ export function Login() {
               <button
                 type="button"
                 onClick={() => setShowPin((v) => !v)}
-                className="flex items-center gap-1 text-xs text-gray-400 hover:text-[#378ADD] transition-colors"
+                className="flex items-center gap-1 text-xs text-gray-400 hover:text-pokemon-blue transition-colors"
               >
                 {showPin ? <EyeOff size={14} /> : <Eye size={14} />}
                 {showPin ? 'Hide' : 'Show'}
@@ -117,14 +117,14 @@ export function Login() {
                   key={i}
                   className={`w-10 h-12 rounded-xl border-2 flex items-center justify-center transition-colors ${
                     i < pin.length
-                      ? 'border-[#378ADD] bg-[#378ADD]/10'
+                      ? 'border-pokemon-blue bg-pokemon-blue/10'
                       : 'border-gray-200 bg-gray-50'
                   }`}
                 >
                   {i < pin.length && (
                     showPin
-                      ? <span className="text-[#378ADD] font-bold text-lg">{pin[i]}</span>
-                      : <div className="w-3 h-3 rounded-full bg-[#378ADD]" />
+                      ? <span className="text-pokemon-blue font-bold text-lg">{pin[i]}</span>
+                      : <div className="w-3 h-3 rounded-full bg-pokemon-blue" />
                   )}
                 </div>
               ))}
@@ -144,7 +144,7 @@ export function Login() {
                   className={`h-14 rounded-2xl text-lg font-bold transition-all active:scale-95 disabled:opacity-50 ${
                     key === 'back'
                       ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 flex items-center justify-center'
-                      : 'bg-gray-100 text-gray-800 hover:bg-[#378ADD]/10 hover:text-[#378ADD]'
+                      : 'bg-gray-100 text-gray-800 hover:bg-pokemon-blue/10 hover:text-pokemon-blue'
                   }`}
                 >
                   {key === 'back' ? <Delete size={20} /> : key}
@@ -163,7 +163,7 @@ export function Login() {
             type="button"
             onClick={handleSubmit}
             disabled={loading || !username.trim() || pin.length !== PIN_LENGTH}
-            className="w-full bg-[#378ADD] text-white font-bold py-3.5 rounded-2xl text-base hover:bg-blue-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full bg-pokemon-yellow text-pokemon-dark font-bold py-3.5 rounded-2xl text-base hover:bg-yellow-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {loading ? 'Signing in…' : 'Sign In'}
           </button>
@@ -172,7 +172,7 @@ export function Login() {
           <div className="text-center mt-4">
             <Link
               to="/forgot-pin"
-              className="text-sm text-gray-400 hover:text-[#378ADD] transition-colors"
+              className="text-sm text-gray-400 hover:text-pokemon-blue transition-colors"
             >
               {forgotText}
             </Link>

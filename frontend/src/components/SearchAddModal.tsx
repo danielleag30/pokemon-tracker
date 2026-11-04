@@ -49,7 +49,7 @@ export function SearchAddModal({ onClose }: Props) {
   return (
     <Sheet onClose={onClose} width="lg" label="Find a card">
         <div data-sheet-handle className="flex items-center justify-between px-4 pb-3 pt-1 sm:p-4 border-b">
-          <h2 className="text-lg font-bold text-gray-800">Search & Add Card</h2>
+          <h2 className="text-lg font-bold text-gray-800">Find a card</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
             <X size={20} />
           </button>
@@ -162,14 +162,14 @@ export function SearchAddModal({ onClose }: Props) {
               <button
                 onClick={handleAdd}
                 disabled={addCard.isPending || added}
-                className="px-5 py-2 bg-pokemon-blue text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="px-5 py-2.5 bg-pokemon-yellow text-pokemon-dark text-sm font-bold rounded-xl hover:bg-yellow-400 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 {added ? (
                   <><CheckCircle size={14} /> Added!</>
                 ) : addCard.isPending ? (
                   <><Loader size={14} className="animate-spin" /> Adding…</>
                 ) : (
-                  'Add to Collection'
+                  'Add to my cards'
                 )}
               </button>
             </>

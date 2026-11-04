@@ -7,7 +7,7 @@ interface Props {
   height?: 'sm' | 'md' | 'lg';
 }
 
-export function ProgressBar({ value, max, color = '#3B4CCA', label, showPercent = true, height = 'md' }: Props) {
+export function ProgressBar({ value, max, color = '#4169E1', label, showPercent = true, height = 'md' }: Props) {
   const pct = max === 0 ? 0 : Math.min(100, Math.round((value / max) * 100));
   const h = height === 'sm' ? 'h-1.5' : height === 'lg' ? 'h-4' : 'h-2.5';
 

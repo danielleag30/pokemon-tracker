@@ -55,7 +55,7 @@ function StarterCard({ name, collectionMap }: { name: string; collectionMap: Map
           className={`text-xs px-2 py-0.5 rounded-full font-medium transition-colors ${
             ownedCount > 0
               ? 'bg-red-100 text-red-600 hover:bg-red-200'
-              : 'bg-pokemon-blue text-white hover:bg-blue-700'
+              : 'bg-pokemon-yellow text-pokemon-dark font-bold hover:bg-yellow-400'
           }`}
         >
           {ownedCount > 0 ? '✓ Owned' : '+ Add'}

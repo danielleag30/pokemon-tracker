@@ -71,7 +71,7 @@ export function BySeries() {
       .map(([name, data]) => ({
         name,
         ...data,
-        color: REGIONS.find((r) => r.series.includes(name))?.color ?? '#3B4CCA',
+        color: REGIONS.find((r) => r.series.includes(name))?.color ?? '#4169E1',
         emoji: REGIONS.find((r) => r.series.includes(name))?.emoji ?? '📦',
       }))
       .sort((a, b) => {
@@ -198,7 +198,7 @@ export function BySeries() {
 
         {!allSeriesLoading && allSeriesCards.length > 0 && (
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-            <ProgressBar value={ownedTotal} max={allSeriesCards.length} color={currentSeries?.color ?? '#3B4CCA'} label={`${seriesName} completion`} />
+            <ProgressBar value={ownedTotal} max={allSeriesCards.length} color={currentSeries?.color ?? '#4169E1'} label={`${seriesName} completion`} />
           </div>
         )}
 
@@ -235,7 +235,7 @@ export function BySeries() {
                 onClick={() => setAllTypeFilter(allTypeFilter === t ? '' : t)}
                 className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${allTypeFilter === t ? 'ring-2 ring-offset-1 opacity-100' : 'opacity-70 hover:opacity-100'}`}
                 style={{
-                  backgroundColor: allTypeFilter === t ? '#3B4CCA' : '#e5e7eb',
+                  backgroundColor: allTypeFilter === t ? '#4169E1' : '#e5e7eb',
                   color: allTypeFilter === t ? '#fff' : '#555',
                 }}
               >
@@ -292,7 +292,7 @@ export function BySeries() {
           <button
             onClick={() => setShowAll(true)}
             className="text-sm font-semibold px-4 py-2 rounded-xl transition-colors text-white"
-            style={{ backgroundColor: currentSeries?.color ?? '#3B4CCA' }}
+            style={{ backgroundColor: currentSeries?.color ?? '#4169E1' }}
           >
             ← All Cards
           </button>
@@ -371,7 +371,7 @@ export function BySeries() {
 
       {!cardsLoading && allCards.length > 0 && (
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-          <ProgressBar value={ownedInSet} max={allCards.length} color={currentSeries?.color ?? '#3B4CCA'} label={`${selectedSet.name} completion`} />
+          <ProgressBar value={ownedInSet} max={allCards.length} color={currentSeries?.color ?? '#4169E1'} label={`${selectedSet.name} completion`} />
         </div>
       )}
 
@@ -422,7 +422,7 @@ function SetCard({ set, color, onClick, collectionMap }: {
           <p className="text-xs text-gray-400">{set.releaseDate} · {set.printedTotal} cards</p>
         </div>
       </div>
-      <ProgressBar value={owned} max={set.printedTotal} color={color ?? '#3B4CCA'} height="sm" />
+      <ProgressBar value={owned} max={set.printedTotal} color={color ?? '#4169E1'} height="sm" />
     </button>
   );
 }

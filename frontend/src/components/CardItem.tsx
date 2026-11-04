@@ -152,7 +152,7 @@ export function CardItem({ card, collectionEntry, binderTags = [] }: Props) {
               <button
                 onClick={handleAdd}
                 disabled={isPending}
-                className="flex-1 bg-pokemon-blue hover:bg-blue-700 text-white text-xs font-semibold py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                className="flex-1 bg-pokemon-yellow text-pokemon-dark hover:bg-yellow-400 text-xs font-bold py-1.5 rounded-lg transition-colors disabled:opacity-50"
               >
                 + Add
               </button>

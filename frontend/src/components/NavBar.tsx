@@ -46,7 +46,7 @@ export function NavBar() {
       <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-pokemon-nav safe-top">
         <div className="h-14 flex items-center justify-center gap-2">
           <img src="/pokeball.svg" alt="" className="w-7 h-7" />
-          <span className="text-white font-bold text-lg tracking-tight">PokeTracker</span>
+          <span className="text-white font-bold text-lg tracking-tight">PokéTracker</span>
         </div>
       </div>
 
@@ -57,7 +57,7 @@ export function NavBar() {
         <div className="p-5 flex items-center gap-3 border-b border-white/10">
           <img src="/pokeball.svg" alt="Pokeball" className="w-9 h-9" />
           <div>
-            <h1 className="text-white font-black text-xl tracking-tight leading-none">PokeTracker</h1>
+            <h1 className="text-white font-black text-xl tracking-tight leading-none">PokéTracker</h1>
             <p className="text-white/40 text-xs mt-0.5">Card Collection</p>
           </div>
         </div>
@@ -102,13 +102,13 @@ export function NavBar() {
             onClick={() => setShowSearch(true)}
             className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-2 rounded-xl text-sm flex items-center justify-center gap-1.5 transition-colors"
           >
-            <Search size={14} /> Search & Add Card
+            <Search size={14} /> Find a Card
           </button>
           <button
             onClick={() => setShowBatch(true)}
             className="w-full bg-pokemon-yellow hover:bg-yellow-400 text-pokemon-dark font-bold py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors"
           >
-            <Plus size={16} /> Batch Add Cards
+            <Plus size={16} /> Add a Bunch
           </button>
         </div>
 
