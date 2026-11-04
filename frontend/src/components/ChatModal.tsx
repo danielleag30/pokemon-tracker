@@ -183,7 +183,7 @@ export function ChatModal({ pageContext }: Props) {
     if (isUser) {
       return (
         <div key={i} className="flex justify-end mb-3">
-          <div className="max-w-[85%] rounded-2xl rounded-br-sm px-3.5 py-2.5 text-sm leading-relaxed bg-blue-600 text-white">
+          <div className="max-w-[85%] rounded-2xl rounded-br-sm px-3.5 py-2.5 text-sm leading-relaxed bg-pokemon-blue text-white">
             {msg.imagePreview && (
               <img
                 src={`data:image/jpeg;base64,${msg.imagePreview}`}
@@ -416,7 +416,7 @@ export function ChatModal({ pageContext }: Props) {
         <button
           type="submit"
           disabled={loading || (!input.trim() && !imagePreview)}
-          className="p-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 transition-colors flex-shrink-0"
+          className="p-2 rounded-xl bg-pokemon-blue text-white hover:bg-pokemon-blue/90 disabled:opacity-40 transition-colors flex-shrink-0"
           aria-label="Send"
         >
           <Send size={18} />

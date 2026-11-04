@@ -6,14 +6,14 @@ export function PrivacyPolicy() {
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center gap-3 mb-8">
           <img src="/pokeball.svg" alt="Pokéball" className="w-9 h-9" />
-          <h1 className="text-2xl font-black text-gray-800">PokeTracker Privacy Policy</h1>
+          <h1 className="text-2xl font-black text-gray-800">PokéTracker Privacy Policy</h1>
         </div>
 
         <div className="bg-white rounded-2xl shadow p-6 space-y-6 text-gray-700 text-sm leading-relaxed">
           <section>
             <h2 className="font-bold text-base text-gray-800 mb-2">Who we are</h2>
             <p>
-              PokeTracker is a personal Pokémon TCG card collection tracking app. This privacy policy explains
+              PokéTracker is a personal Pokémon TCG card collection tracking app. This privacy policy explains
               what information we collect, why we collect it, and how you can control it.
             </p>
           </section>
@@ -21,7 +21,7 @@ export function PrivacyPolicy() {
           <section>
             <h2 className="font-bold text-base text-gray-800 mb-2">Children's privacy (COPPA)</h2>
             <p>
-              PokeTracker features Pokémon characters and may be used by children under 13. We take children's
+              PokéTracker features Pokémon characters and may be used by children under 13. We take children's
               privacy seriously and comply with the Children's Online Privacy Protection Act (COPPA).
             </p>
             <ul className="list-disc ml-5 mt-2 space-y-1">
@@ -92,7 +92,7 @@ export function PrivacyPolicy() {
             </ul>
             <p className="mt-2">
               To exercise any of these rights, email us at{' '}
-              <a href="mailto:privacy@pokemontracker.app" className="text-[#378ADD] underline">
+              <a href="mailto:privacy@pokemontracker.app" className="text-pokemon-blue underline">
                 privacy@pokemontracker.app
               </a>
               . We will respond within 30 days.
@@ -120,7 +120,7 @@ export function PrivacyPolicy() {
         </div>
 
         <div className="text-center mt-6">
-          <Link to="/login" className="text-[#378ADD] text-sm font-semibold hover:underline">
+          <Link to="/login" className="text-pokemon-blue text-sm font-semibold hover:underline">
             ← Back to Sign In
           </Link>
         </div>

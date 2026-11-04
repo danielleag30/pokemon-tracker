@@ -34,9 +34,9 @@ export function Dashboard() {
   }).filter((r) => r.total > 0);
 
   const statCards = [
-    { label: 'Number of Unique Cards',   value: stats?.uniqueCards ?? 0,      color: '#3B4CCA', emoji: '🃏', format: (v: number) => v.toLocaleString() },
-    { label: 'Total Amount of Cards',   value: stats?.totalCards ?? 0,       color: '#22c55e', emoji: '📦', format: (v: number) => v.toLocaleString() },
-    { label: 'Est. Value',     value: totalValue,                    color: '#f59e0b', emoji: '💰', format: (v: number) => valueLoading ? '…' : formatPrice(v) },
+    { label: 'Different cards',   value: stats?.uniqueCards ?? 0,      color: '#4169E1', emoji: '🃏', format: (v: number) => v.toLocaleString() },
+    { label: 'Total cards',   value: stats?.totalCards ?? 0,       color: '#22c55e', emoji: '📦', format: (v: number) => v.toLocaleString() },
+    { label: 'Worth about',     value: totalValue,                    color: '#f59e0b', emoji: '💰', format: (v: number) => valueLoading ? '…' : formatPrice(v) },
     { label: 'Binders',        value: stats?.binders.length ?? 0,   color: '#8b5cf6', emoji: '📚', format: (v: number) => v.toLocaleString() },
   ];
 
@@ -45,7 +45,7 @@ export function Dashboard() {
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-black text-gray-900">My Collection</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Track your Pokémon TCG cards across all devices</p>
+          <p className="text-sm text-gray-500 mt-0.5">Every card, every set, all in one place</p>
         </div>
         <div className="hidden lg:flex gap-2">
           <button
@@ -62,7 +62,7 @@ export function Dashboard() {
         {statCards.map(({ label, value, color, emoji, format }) => (
           <div key={label} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
             <div className="text-2xl mb-1">{emoji}</div>
-            {statsLoading && label !== 'Est. Value' ? (
+            {statsLoading && label !== 'Worth about' ? (
               <div className="h-8 bg-gray-100 rounded animate-pulse w-16 mb-1" />
             ) : (
               <p className="text-2xl font-black" style={{ color }}>{format(value)}</p>
@@ -74,7 +74,7 @@ export function Dashboard() {
 
       {/* Search */}
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-        <h2 className="text-sm font-bold text-gray-700 mb-3">Quick Search & Add</h2>
+        <h2 className="text-sm font-bold text-gray-700 mb-3">Find a card</h2>
         <SearchBar value={search} onChange={setSearch} placeholder="Search any Pokémon card…" />
         {search.length >= 2 && (
           <div className="mt-4">

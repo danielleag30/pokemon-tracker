@@ -5,7 +5,9 @@ export default {
     extend: {
       colors: {
         pokemon: {
-          blue: '#3B4CCA',
+          // Royal blue, the app icon's colour: highlights only (active state,
+          // progress, selected chips). Main buttons are yellow; bars are navy.
+          blue: '#4169E1',
           yellow: '#FFCB05',
           red: '#CC0000',
           dark: '#1E1B4B',

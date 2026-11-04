@@ -243,7 +243,7 @@ export function BatchAddModal({ onClose }: Props) {
 
         {/* Header */}
         <div data-sheet-handle className="flex items-center justify-between px-4 pb-3 pt-1 sm:p-4 border-b">
-          <h2 className="text-lg font-bold text-gray-800">Batch Add Cards</h2>
+          <h2 className="text-lg font-bold text-gray-800">Add a bunch of cards</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
             <X size={20} />
           </button>
@@ -514,7 +514,7 @@ export function BatchAddModal({ onClose }: Props) {
             <button
               onClick={handleAdd}
               disabled={selected.size === 0 || batchAdd.isPending}
-              className="px-5 py-2 bg-pokemon-blue text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              className="px-5 py-2.5 bg-pokemon-yellow text-pokemon-dark text-sm font-bold rounded-xl hover:bg-yellow-400 transition-colors disabled:opacity-50 flex items-center gap-2"
             >
               {batchAdd.isPending && <Loader size={14} className="animate-spin" />}
               Add {selected.size > 0 ? selected.size : ''} Cards

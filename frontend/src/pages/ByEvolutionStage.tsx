@@ -46,7 +46,7 @@ export function ByEvolutionStage() {
 
   const sets = setsData?.data ?? [];
   const allCards = setCardsData?.data ?? [];
-  const color = STAGE_COLORS[selectedStage] ?? '#3B4CCA';
+  const color = STAGE_COLORS[selectedStage] ?? '#4169E1';
 
   const visibleStages = EVOLUTION_STAGES.filter((s) =>
     !stageSearch || s.toLowerCase().includes(stageSearch.toLowerCase())

@@ -88,14 +88,14 @@ export function ResetPin() {
 
   if (verifying) {
     return (
-      <div className="min-h-screen bg-[#378ADD] flex items-center justify-center px-4 safe-y">
+      <div className="min-h-screen bg-pokemon-nav flex items-center justify-center px-4 safe-y">
         <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#378ADD] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-pokemon-nav flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-6">
           <img src="/pokeball.svg" alt="Pokéball" className="w-14 h-14 mb-3" />
@@ -111,7 +111,7 @@ export function ResetPin() {
               <button
                 type="button"
                 onClick={() => navigate('/login', { replace: true })}
-                className="block w-full bg-[#378ADD] text-white font-bold py-3 rounded-2xl text-center hover:bg-blue-600 transition-colors"
+                className="block w-full bg-pokemon-yellow text-pokemon-dark font-bold py-3 rounded-2xl text-center hover:bg-yellow-400 transition-colors"
               >
                 Sign In
               </button>
@@ -123,7 +123,7 @@ export function ResetPin() {
               <p className="text-gray-500 text-sm">{error}</p>
               <Link
                 to="/forgot-pin"
-                className="block w-full bg-[#378ADD] text-white font-bold py-3 rounded-2xl text-center hover:bg-blue-600 transition-colors"
+                className="block w-full bg-pokemon-yellow text-pokemon-dark font-bold py-3 rounded-2xl text-center hover:bg-yellow-400 transition-colors"
               >
                 Request New Link
               </Link>
@@ -141,12 +141,12 @@ export function ResetPin() {
                       key={i}
                       className={`w-9 h-11 rounded-xl border-2 flex items-center justify-center transition-colors ${
                         i < currentPin.length
-                          ? 'border-[#378ADD] bg-[#378ADD]/10'
+                          ? 'border-pokemon-blue bg-pokemon-blue/10'
                           : 'border-gray-200 bg-gray-50'
                       }`}
                     >
                       {i < currentPin.length && (
-                        <div className="w-2.5 h-2.5 rounded-full bg-[#378ADD]" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-pokemon-blue" />
                       )}
                     </div>
                   ))}
@@ -164,7 +164,7 @@ export function ResetPin() {
                         className={`h-12 rounded-2xl text-base font-bold transition-all active:scale-95 disabled:opacity-50 ${
                           key === 'back'
                             ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 flex items-center justify-center'
-                            : 'bg-gray-100 text-gray-800 hover:bg-[#378ADD]/10 hover:text-[#378ADD]'
+                            : 'bg-gray-100 text-gray-800 hover:bg-pokemon-blue/10 hover:text-pokemon-blue'
                         }`}
                       >
                         {key === 'back' ? <Delete size={18} /> : key}
@@ -181,7 +181,7 @@ export function ResetPin() {
                   type="button"
                   onClick={advancePin}
                   disabled={pin.length !== PIN_LENGTH}
-                  className="w-full bg-[#378ADD] text-white font-bold py-3.5 rounded-2xl text-base hover:bg-blue-600 transition-colors disabled:opacity-40"
+                  className="w-full bg-pokemon-yellow text-pokemon-dark font-bold py-3.5 rounded-2xl text-base hover:bg-yellow-400 transition-colors disabled:opacity-40"
                 >
                   Next →
                 </button>
@@ -190,7 +190,7 @@ export function ResetPin() {
                   type="button"
                   onClick={handleSubmit}
                   disabled={loading || confirmPin.length !== PIN_LENGTH}
-                  className="w-full bg-[#378ADD] text-white font-bold py-3.5 rounded-2xl text-base hover:bg-blue-600 transition-colors disabled:opacity-40"
+                  className="w-full bg-pokemon-yellow text-pokemon-dark font-bold py-3.5 rounded-2xl text-base hover:bg-yellow-400 transition-colors disabled:opacity-40"
                 >
                   {loading ? 'Saving…' : 'Save New PIN'}
                 </button>

@@ -42,10 +42,10 @@ export function FeedbackModal({ onClose }: Props) {
           <div className="flex flex-col items-center gap-4 py-6">
             <CheckCircle size={48} className="text-green-500" />
             <h2 className="text-xl font-bold text-gray-900">Thanks for your feedback!</h2>
-            <p className="text-gray-500 text-sm text-center">Your feedback helps us improve PokeTracker.</p>
+            <p className="text-gray-500 text-sm text-center">Your feedback helps us improve PokéTracker.</p>
             <button
               onClick={onClose}
-              className="mt-2 bg-pokemon-blue text-white font-semibold px-6 py-2 rounded-xl hover:bg-blue-700 transition-colors"
+              className="mt-2 bg-pokemon-yellow text-pokemon-dark font-bold px-6 py-2.5 rounded-xl hover:bg-yellow-400 transition-colors"
             >
               Done
             </button>
@@ -53,7 +53,7 @@ export function FeedbackModal({ onClose }: Props) {
         ) : (
           <>
             <h2 className="text-xl font-bold text-gray-900 mb-1">Send Feedback</h2>
-            <p className="text-gray-500 text-sm mb-6">How's your experience with PokeTracker?</p>
+            <p className="text-gray-500 text-sm mb-6">How's your experience with PokéTracker?</p>
 
             <div className="flex gap-3 mb-6">
               <button
@@ -95,7 +95,7 @@ export function FeedbackModal({ onClose }: Props) {
             <button
               onClick={handleSubmit}
               disabled={rating === null || submitting}
-              className="w-full bg-pokemon-blue hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-2.5 rounded-xl transition-colors"
+              className="w-full bg-pokemon-yellow text-pokemon-dark hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed font-bold py-3 rounded-xl transition-colors"
             >
               {submitting ? 'Sending…' : 'Send Feedback'}
             </button>
