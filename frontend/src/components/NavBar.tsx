@@ -66,7 +66,7 @@ export function NavBar() {
   return (
     <>
       {/* Mobile top bar */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-pokemon-nav flex items-center justify-between px-4 py-3 shadow-lg">
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-pokemon-nav flex items-center justify-between px-4 py-3 safe-top shadow-lg">
         <div className="flex items-center gap-2">
           <img src="/pokeball.svg" alt="Pokeball" className="w-7 h-7" />
           <span className="text-white font-bold text-lg tracking-tight">PokeTracker</span>
@@ -94,7 +94,7 @@ export function NavBar() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-full z-40 w-64 bg-pokemon-nav flex flex-col transition-transform duration-300
+        className={`fixed top-0 left-0 h-full z-40 w-64 bg-pokemon-nav flex flex-col safe-top transition-transform duration-300
           lg:translate-x-0 lg:static lg:flex
           ${open ? 'translate-x-0' : '-translate-x-full'}`}
       >
@@ -169,7 +169,7 @@ export function NavBar() {
 
         {/* User section — signed-in identity, plus switching between accounts
             that have signed in on this device */}
-        <div className="px-4 py-3 border-t border-white/10">
+        <div className="px-4 py-3 safe-bottom border-t border-white/10">
           {switcherOpen && otherAccounts.length > 0 && (
             <div className="mb-2 space-y-1">
               {otherAccounts.map((account) => (

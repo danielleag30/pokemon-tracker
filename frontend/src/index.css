@@ -30,6 +30,32 @@
   .text-pokemon-dark {
     color: #1E1B4B;
   }
+
+  /* iOS safe areas. The app runs full-bleed in a WKWebView (contentInset is
+     'never'), so the Dynamic Island and home indicator sit over content unless
+     these are applied. max() preserves the original spacing on hardware with
+     no inset, which includes every desktop browser. */
+  .safe-y {
+    padding-top: max(1rem, env(safe-area-inset-top));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  /* Clears the fixed mobile top bar: 3.5rem of bar plus the top inset. The
+     desktop reset lives here so this does not depend on winning a source-order
+     fight with Tailwind's lg:pt-0. */
+  .pt-topbar-safe {
+    padding-top: calc(3.5rem + env(safe-area-inset-top));
+  }
+  @media (min-width: 1024px) {
+    .pt-topbar-safe {
+      padding-top: 0;
+    }
+  }
 }
 
 /* ── Pokeball chat button animations ─────────────────────────────────────── */
