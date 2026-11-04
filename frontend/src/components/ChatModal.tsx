@@ -281,6 +281,7 @@ export function ChatModal({ pageContext }: Props) {
           aria-label="Open AI chat"
           className={[
             'fixed bottom-5 right-5 z-50 w-14 h-14 bg-transparent p-0 rounded-full focus:outline-none',
+            'mb-[env(safe-area-inset-bottom)]',
             phase === 'closed'  ? 'pokeball-idle hover:scale-110 active:scale-95 transition-transform duration-150' : '',
             phase === 'shaking' ? 'pokeball-shaking' : '',
             phase === 'opening' ? 'pokeball-exiting' : '',
@@ -333,7 +334,7 @@ export function ChatModal({ pageContext }: Props) {
       {/* ── Chat panel ──────────────────────────────────────────────────── */}
       {showModal && (
         <div
-          className={`fixed bottom-5 right-5 z-[51] flex flex-col w-[360px] max-w-[calc(100vw-2rem)] h-[540px] max-h-[calc(100vh-6rem)] bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden
+          className={`fixed bottom-5 right-5 z-[51] mb-[env(safe-area-inset-bottom)] flex flex-col w-[360px] max-w-[calc(100vw-2rem)] h-[540px] max-h-[calc(100vh-6rem)] bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden
             ${phase === 'opening' ? 'chat-entering' : ''}
             ${phase === 'closing' ? 'chat-exiting'  : ''}
           `}
