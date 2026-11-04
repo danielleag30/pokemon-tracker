@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { haptic } from '../lib/native';
 import { useMemo } from 'react';
 import { collectionApi } from '../utils/api';
 import { getMarketPrice } from '../utils/prices';
@@ -43,6 +44,7 @@ export function useAddCard() {
     mutationFn: ({ cardId, quantity = 1, binderTag, foilType }: { cardId: string; quantity?: number; binderTag?: string; foilType?: string | null }) =>
       collectionApi.add(cardId, quantity, binderTag, foilType),
     onSuccess: () => {
+      haptic('success');
       qc.invalidateQueries({ queryKey: ['collection'] });
       qc.invalidateQueries({ queryKey: ['collection-with-cards'] });
       qc.invalidateQueries({ queryKey: ['collection-stats'] });
@@ -56,6 +58,7 @@ export function useBatchAddCards() {
     mutationFn: (cards: { cardId: string; quantity?: number; binderTag?: string; foilType?: string | null }[]) =>
       collectionApi.batchAdd(cards),
     onSuccess: () => {
+      haptic('success');
       qc.invalidateQueries({ queryKey: ['collection'] });
       qc.invalidateQueries({ queryKey: ['collection-with-cards'] });
       qc.invalidateQueries({ queryKey: ['collection-stats'] });
@@ -69,6 +72,7 @@ export function useUpdateCard() {
     mutationFn: ({ cardId, updates }: { cardId: string; updates: { quantity?: number; binderTag?: string | null; foilType?: string | null } }) =>
       collectionApi.update(cardId, updates),
     onSuccess: () => {
+      haptic('tap');
       qc.invalidateQueries({ queryKey: ['collection'] });
       qc.invalidateQueries({ queryKey: ['collection-with-cards'] });
       qc.invalidateQueries({ queryKey: ['collection-stats'] });
@@ -81,6 +85,7 @@ export function useRemoveCard() {
   return useMutation({
     mutationFn: (cardId: string) => collectionApi.remove(cardId),
     onSuccess: () => {
+      haptic('tap');
       qc.invalidateQueries({ queryKey: ['collection'] });
       qc.invalidateQueries({ queryKey: ['collection-with-cards'] });
       qc.invalidateQueries({ queryKey: ['collection-stats'] });

@@ -5,9 +5,15 @@ PODS:
   - CapacitorFilesystem (7.1.4):
     - Capacitor
     - IONFilesystemLib (~> 1.0.1)
+  - CapacitorHaptics (7.0.5):
+    - Capacitor
+  - CapacitorKeyboard (7.0.6):
+    - Capacitor
   - CapacitorPreferences (7.0.2):
     - Capacitor
   - CapacitorShare (7.0.2):
+    - Capacitor
+  - CapacitorStatusBar (7.0.6):
     - Capacitor
   - IONFilesystemLib (1.0.1)
 
@@ -15,8 +21,11 @@ DEPENDENCIES:
   - "Capacitor (from `../../node_modules/@capacitor/ios`)"
   - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
   - "CapacitorFilesystem (from `../../node_modules/@capacitor/filesystem`)"
+  - "CapacitorHaptics (from `../../node_modules/@capacitor/haptics`)"
+  - "CapacitorKeyboard (from `../../node_modules/@capacitor/keyboard`)"
   - "CapacitorPreferences (from `../../node_modules/@capacitor/preferences`)"
   - "CapacitorShare (from `../../node_modules/@capacitor/share`)"
+  - "CapacitorStatusBar (from `../../node_modules/@capacitor/status-bar`)"
 
 SPEC REPOS:
   trunk:
@@ -29,19 +38,28 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/@capacitor/ios"
   CapacitorFilesystem:
     :path: "../../node_modules/@capacitor/filesystem"
+  CapacitorHaptics:
+    :path: "../../node_modules/@capacitor/haptics"
+  CapacitorKeyboard:
+    :path: "../../node_modules/@capacitor/keyboard"
   CapacitorPreferences:
     :path: "../../node_modules/@capacitor/preferences"
   CapacitorShare:
     :path: "../../node_modules/@capacitor/share"
+  CapacitorStatusBar:
+    :path: "../../node_modules/@capacitor/status-bar"
 
 SPEC CHECKSUMS:
   Capacitor: 28d6c01026a9a3f7156529498ec1f389a2a28dbc
   CapacitorCordova: 435121e81a2df4d0034f0fb11fcefab5104cfdb5
   CapacitorFilesystem: f9bd850c41e048180e5dc0cbb90f2033ede9d2cc
+  CapacitorHaptics: 1b145fa83c622e5383a3bac04ea81e2514f0b0f5
+  CapacitorKeyboard: a2e0869edd229490ce36aed2549c0d6b95e27ee8
   CapacitorPreferences: 65107ed7437d96ee72583df5763985e3c0ff2bc2
   CapacitorShare: be166411fa995ead2d39b104aa0aae56d8615c66
+  CapacitorStatusBar: 416e9e53fd6397e668d4a181cd2131617d949bd6
   IONFilesystemLib: 89258b8e3e85465da93127d25d7ce37f977e8a6f
 
-PODFILE CHECKSUM: 7f52c562deb408e0cbbe7b4df63b856e5b55a055
+PODFILE CHECKSUM: bbc37e8fe4a439146a284fd448e21cf5baec710a
 
 COCOAPODS: 1.17.0

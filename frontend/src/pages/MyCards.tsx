@@ -6,6 +6,7 @@ import { CardLightbox } from '../components/CardLightbox';
 import { STARTER_LINES, TYPE_DISPLAY_NAMES, REGIONS } from '../utils/constants';
 import { FOIL_LABELS, FOIL_PRIORITY, type FoilType } from '../types';
 import type { TCGCard, CollectionEntry } from '../types';
+import { useConfirm } from '../contexts/ConfirmContext';
 
 type GroupBy = 'set' | 'series' | 'starter' | 'type' | 'evolution' | 'value';
 
@@ -48,6 +49,7 @@ export function MyCards() {
   const { data: ownedCards, isLoading } = useCollectionWithCards();
   const { data: stats } = useCollectionStats();
   const removeCard = useRemoveCard();
+  const confirm = useConfirm();
   const { oldest: pricesOldest, refreshedCount, totalCount: pricedTotal } = usePricesUpdatedAt();
 
   const allOwnedCards = ownedCards ?? [];
@@ -222,7 +224,14 @@ export function MyCards() {
 
   const handleDeleteSelected = async () => {
     if (selectedIds.size === 0) return;
-    if (!confirm(`Remove ${selectedIds.size} card${selectedIds.size !== 1 ? 's' : ''} from your collection?`)) return;
+    const n = selectedIds.size;
+    const ok = await confirm({
+      title: `Remove ${n} card${n !== 1 ? 's' : ''}?`,
+      message: 'They will come out of your collection.',
+      confirmLabel: 'Remove',
+      destructive: true,
+    });
+    if (!ok) return;
     await Promise.all([...selectedIds].map((id) => removeCard.mutateAsync(id)));
     exitSelectMode();
   };
