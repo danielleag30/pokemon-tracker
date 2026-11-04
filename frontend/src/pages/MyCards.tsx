@@ -505,7 +505,7 @@ export function MyCards() {
                     )}
                     {/* Binder label on hover */}
                     {entry.binder_tag && selectedBinder === null && !selectMode && (
-                      <div className="absolute inset-x-0 bottom-0 bg-purple-700/80 text-white text-xs text-center py-0.5 rounded-b-lg truncate px-1 opacity-0 group-hover/card:opacity-100 transition-opacity">
+                      <div className="absolute inset-x-0 bottom-0 bg-purple-700/80 text-white text-xs text-center py-0.5 rounded-b-lg truncate px-1 transition-opacity opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/card:opacity-100">
                         {entry.binder_tag}
                       </div>
                     )}
