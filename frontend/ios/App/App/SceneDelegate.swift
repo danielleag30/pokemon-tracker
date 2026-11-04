@@ -19,8 +19,20 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     ) {
         guard let windowScene = scene as? UIWindowScene else { return }
         let window = UIWindow(windowScene: windowScene)
-        window.rootViewController = CAPBridgeViewController()
+        window.rootViewController = AppBridgeViewController()
         self.window = window
         window.makeKeyAndVisible()
+    }
+}
+
+/// The app's web view, with the iPhone behaviours a plain WKWebView lacks.
+class AppBridgeViewController: CAPBridgeViewController {
+    override func capacitorDidLoad() {
+        super.capacitorDidLoad()
+        // Swipe in from the left edge to go back a page, as in every iOS
+        // app. The site is a single-page app, but its in-app navigation
+        // goes through history.pushState, which WKWebView's back list
+        // records, so the gesture steps back through screens.
+        webView?.allowsBackForwardNavigationGestures = true
     }
 }

@@ -4,6 +4,7 @@ import { TypeBadge } from './TypeBadge';
 import { getMarketPrice, formatPrice, getAvailableTiers } from '../utils/prices';
 import { useUpdateCard, useRemoveCard, useCollectionStats } from '../hooks/useCollection';
 import { FOIL_LABELS, type FoilType } from '../types';
+import { useConfirm } from '../contexts/ConfirmContext';
 import type { TCGCard, CollectionEntry } from '../types';
 
 interface Props {
@@ -19,6 +20,7 @@ export function CardLightbox({ card, entry, onClose }: Props) {
 
   const updateCard = useUpdateCard();
   const removeCard = useRemoveCard();
+  const confirm = useConfirm();
   const { data: stats } = useCollectionStats();
   const binderTags = stats?.binders.map((b) => b.binder_tag) ?? [];
 
@@ -203,8 +205,14 @@ export function CardLightbox({ card, entry, onClose }: Props) {
         {entry && (
           <div className="px-4 pb-4">
             <button
-              onClick={() => {
-                if (!confirm('Remove this card from your collection?')) return;
+              onClick={async () => {
+                const ok = await confirm({
+                  title: 'Remove this card?',
+                  message: `${card.name} will come out of your collection.`,
+                  confirmLabel: 'Remove',
+                  destructive: true,
+                });
+                if (!ok) return;
                 removeCard.mutate(card.id, { onSuccess: onClose });
               }}
               disabled={removeCard.isPending}

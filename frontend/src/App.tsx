@@ -1,6 +1,9 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
+import { ConfirmProvider } from './contexts/ConfirmContext';
+import { setStatusBarText } from './lib/native';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
@@ -30,11 +33,25 @@ const queryClient = new QueryClient({
   },
 });
 
+// Pages whose top edge is light, so the clock and battery need dark text.
+// Every other screen has the navy bar or the blue sign-in background up top.
+const LIGHT_TOP_PAGES = ['/privacy'];
+
+function StatusBarSync() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    setStatusBarText(LIGHT_TOP_PAGES.includes(pathname) ? 'dark' : 'light');
+  }, [pathname]);
+  return null;
+}
+
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+        <StatusBarSync />
         <AuthProvider>
+          <ConfirmProvider>
           <Routes>
             {/* Public auth routes */}
             <Route path="/login" element={<Login />} />
@@ -65,6 +82,7 @@ export function App() {
               <Route path="admin" element={<Admin />} />
             </Route>
           </Routes>
+          </ConfirmProvider>
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>

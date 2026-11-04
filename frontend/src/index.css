@@ -11,6 +11,51 @@
     @apply font-pokemon antialiased;
   }
 
+  /* iOS zooms the whole page in when you tap a text box whose text is under
+     16px, and every box here was 12-14px. Touch screens only, so desktop
+     keeps the compact sizes. Website and app both. */
+  @media (pointer: coarse) {
+    input, select, textarea {
+      font-size: 16px !important;
+    }
+  }
+
+  /* Tap feedback. 168 of the app's button styles only react to a mouse
+     hovering, so on a phone a tap did nothing visible. Dimming on press is
+     how iOS buttons answer a touch. Opacity rather than a scale so it never
+     fights the transforms the chat Pokéball and sidebar already animate. */
+  @media (hover: none) {
+    button:not(:disabled),
+    a,
+    [role='button'] {
+      transition: opacity 120ms ease-out;
+    }
+    button:not(:disabled):active,
+    a:active,
+    [role='button']:active {
+      opacity: 0.6;
+      transition: none;
+    }
+  }
+
+  /* App only (initNative adds .native). Holding a finger on a card showed
+     Safari's Save Image / Copy menu and on a link a web page preview, and
+     any label could be text-selected. Text boxes stay selectable. */
+  .native body {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+  .native input,
+  .native textarea,
+  .native [contenteditable='true'] {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  .native img {
+    -webkit-user-drag: none;
+  }
+
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -175,6 +220,18 @@
 .chat-exiting {
   transform-origin: bottom right;
   animation: chat-disappear 0.28s ease-in forwards;
+}
+
+/* Bottom sheet entrance (ConfirmContext). On wider screens the sheet is a
+   centred card and simply fades with its backdrop. */
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+@media (max-width: 639px) {
+  .sheet-up {
+    animation: sheet-up 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
 }
 
 @media print {

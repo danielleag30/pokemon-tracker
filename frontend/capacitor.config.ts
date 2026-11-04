@@ -40,6 +40,9 @@ const config: CapacitorConfig = {
     // Let the web layout own the safe areas rather than having WKWebView
     // inset the whole scroll view; the app already handles its own padding.
     contentInset: 'never',
+    // Navy behind the web view, so the moment between the launch screen and
+    // the site's first paint is not a white flash.
+    backgroundColor: '#16133A',
   },
 };
 
