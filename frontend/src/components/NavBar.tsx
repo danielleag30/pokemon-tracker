@@ -50,10 +50,17 @@ export function NavBar() {
         </div>
       </div>
 
-      {/* Sidebar */}
-      <aside
-        className="hidden lg:flex lg:static h-full w-64 bg-pokemon-nav flex-col safe-top"
-      >
+      {/* Wide screens (desktop, iPad in landscape): navy behind the status
+          bar across the full width. Without it the clock, Wi-Fi and battery
+          sit white-on-white over the light page on an iPad. Zero height in
+          a desktop browser. */}
+      <div
+        aria-hidden="true"
+        className="hidden lg:block fixed top-0 inset-x-0 z-30 h-[env(safe-area-inset-top)] bg-pokemon-nav"
+      />
+
+      {/* Sidebar: stays in place while the page scrolls. */}
+      <aside className="hidden lg:flex sticky top-0 h-screen w-64 shrink-0 bg-pokemon-nav flex-col safe-top">
         <div className="p-5 flex items-center gap-3 border-b border-white/10">
           <img src="/pokeball.svg" alt="Pokeball" className="w-9 h-9" />
           <div>

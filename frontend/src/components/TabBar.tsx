@@ -39,7 +39,7 @@ export function TabBar() {
         aria-label="Main"
         className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-pokemon-nav border-t border-white/10 pb-[env(safe-area-inset-bottom)]"
       >
-        <div className="h-16 grid grid-cols-5 items-center">
+        <div className="h-16 max-w-xl mx-auto grid grid-cols-5 items-center">
           {tabs.map((tab) => {
             if (tab.key === 'add') {
               return (
