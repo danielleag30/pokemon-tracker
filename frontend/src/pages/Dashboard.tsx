@@ -58,7 +58,7 @@ export function Dashboard() {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {statCards.map(({ label, value, color, emoji, format }) => (
           <div key={label} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
             <div className="text-2xl mb-1">{emoji}</div>

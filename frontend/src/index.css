@@ -98,7 +98,7 @@
   }
   @media (min-width: 1024px) {
     .pt-topbar-safe {
-      padding-top: 0;
+      padding-top: env(safe-area-inset-top);
     }
   }
 
